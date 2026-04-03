@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Engineering — Knowledge Base</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#101014;color:#e2e8f0;min-height:100vh}
+
+/* ===== PAGE TITLE ===== */
+.page-title{
+  font-size:3.2em;font-weight:900;color:#fff;margin-bottom:48px;
+  text-align:center;
+  background:linear-gradient(135deg,#E25A1C,#29F1C3,#4285F4,#E6526F,#7C3AED,#336791);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+  letter-spacing:-2px;
+  animation:fadeSlideUp .8s ease-out;
+}
+
+/* ===== MAIN ===== */
+.main{max-width:1200px;margin:0 auto;padding:40px 30px 80px}
+
+.section-title{
+  font-size:1.4em;font-weight:700;color:#fff;margin-bottom:28px;
+  display:flex;align-items:center;gap:12px;
+}
+.section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,#2a2a30,transparent)}
+
+/* ===== CARD GRID ===== */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px;margin-bottom:60px}
+
+.card{
+  background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 14%,#111115),#111115);
+  border:1px solid color-mix(in srgb,var(--accent) 30%,#2a2a30);
+  border-radius:16px;padding:0;
+  text-decoration:none;color:#e2e8f0;display:flex;flex-direction:column;
+  transition:all .3s cubic-bezier(.25,.8,.25,1);position:relative;overflow:hidden;
+  opacity:0;transform:translateY(30px);
+  animation:fadeSlideUp .6s ease-out forwards;
+}
+.card-inner{padding:28px;display:flex;flex-direction:column;flex:1;height:100%}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:4px;
+  background:var(--accent);
+}
+.card:hover{
+  transform:translateY(-6px);
+  border-color:color-mix(in srgb,var(--accent) 65%,transparent);
+  box-shadow:0 16px 48px rgba(0,0,0,.6),0 0 40px color-mix(in srgb,var(--accent) 20%,transparent);
+}
+
+.card-header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+.card-logo{
+  width:48px;height:48px;border-radius:12px;object-fit:contain;
+  background:#222228;padding:6px;flex-shrink:0;
+}
+.card-logo-fallback{
+  width:48px;height:48px;border-radius:12px;
+  background:var(--accent);display:flex;align-items:center;justify-content:center;
+  font-size:1.3em;font-weight:800;color:#fff;flex-shrink:0;
+}
+.card-title{font-size:1.15em;font-weight:700;color:#fff;line-height:1.3}
+.card-sub{font-size:.8em;color:#64748b;margin-top:2px}
+
+.card-desc{font-size:.88em;color:#94a3b8;line-height:1.6;flex:1;margin-bottom:18px}
+
+.card-stats{
+  display:flex;gap:16px;padding-top:16px;
+  border-top:1px solid color-mix(in srgb,var(--accent) 25%,#2a2a30);
+  margin-top:auto;
+}
+.card-stat{display:flex;align-items:center;gap:5px;font-size:.78em;color:#64748b}
+.card-stat svg{width:14px;height:14px;color:var(--accent);opacity:.7}
+.card-stat span{font-weight:600;color:color-mix(in srgb,var(--accent) 80%,#94a3b8)}
+
+/* ===== COMING SOON ===== */
+.card-soon{
+  background:linear-gradient(145deg,#1c1c22,#141418);
+  border:1px dashed #2a2a30;border-radius:16px;padding:28px;
+  display:flex;align-items:center;gap:16px;
+  opacity:0;transform:translateY(30px);
+  animation:fadeSlideUp .6s ease-out forwards;
+}
+.card-soon-icon{
+  width:44px;height:44px;border-radius:12px;background:#2a2a30;
+  display:flex;align-items:center;justify-content:center;font-size:1.2em;flex-shrink:0;
+}
+.card-soon-text{font-size:.95em;color:#475569;font-weight:600}
+.card-soon-badge{
+  font-size:.65em;text-transform:uppercase;letter-spacing:2px;
+  color:#333338;background:#2a2a30;padding:3px 10px;border-radius:20px;margin-left:auto;
+}
+
+/* ===== FOOTER ===== */
+.footer{
+  text-align:center;padding:30px;color:#333338;font-size:.8em;
+  border-top:1px solid #2a2a30;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+
+.card:nth-child(1){animation-delay:.1s}
+.card:nth-child(2){animation-delay:.2s}
+.card:nth-child(3){animation-delay:.3s}
+.card:nth-child(4){animation-delay:.4s}
+.card:nth-child(5){animation-delay:.5s}
+.card:nth-child(6){animation-delay:.6s}
+.card:nth-child(7){animation-delay:.7s}
+
+.card-soon:nth-child(1){animation-delay:.15s}
+.card-soon:nth-child(2){animation-delay:.25s}
+.card-soon:nth-child(3){animation-delay:.35s}
+.card-soon:nth-child(4){animation-delay:.45s}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:768px){
+  .grid{grid-template-columns:1fr}
+  .hero{padding:40px 20px 30px}
+  .hero-stats{gap:24px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+
+  <h1 class="page-title">Data Engineer</h1>
+
+  <div class="grid">
+
+    <!-- Spark -->
+    <a class="card" href="spark.html" style="--accent:#E25A1C">
+      <div class="card-inner">
+        <div class="card-header">
+          <img class="card-logo" src="https://spark.apache.org/images/spark-logo-rev.svg" alt="Spark" onerror="this.outerHTML='<div class=card-logo-fallback>S</div>'">
+          <div>
+            <div class="card-title">Apache Spark</div>
+            <div class="card-sub">Complete Deep-Dive Guide</div>
+          </div>
+        </div>
+        <div class="card-desc">From RDD internals to Catalyst optimizer, shuffle architecture, memory management, and production tuning patterns.</div>
+        <div class="card-stats">
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>50</span> sections</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg><span>151</span> diagrams</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>115</span> code</div>
+        </div>
+      </div>
+    </a>
+
+    <!-- Druid -->
+    <a class="card" href="druid.html" style="--accent:#29F1C3">
+      <div class="card-inner">
+        <div class="card-header">
+          <img class="card-logo" src="https://druid.apache.org/img/druid_nav.png" alt="Druid" onerror="this.outerHTML='<div class=card-logo-fallback>D</div>'">
+          <div>
+            <div class="card-title">Apache Druid</div>
+            <div class="card-sub">Complete Deep-Dive Guide</div>
+          </div>
+        </div>
+        <div class="card-desc">Real-time OLAP internals — ingestion pipelines, segment architecture, query processing, and cluster operations.</div>
+        <div class="card-stats">
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>41</span> sections</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg><span>65</span> diagrams</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>175</span> code</div>
+        </div>
+      </div>
+    </a>
+
+    <!-- GCP -->
+    <a class="card" href="gcp.html" style="--accent:#4285F4">
+      <div class="card-inner">
+        <div class="card-header">
+          <img class="card-logo" src="https://www.gstatic.com/devrel-devsite/prod/v0e0f589edd85502a40d78d7d0825db8ea5ef3b99ab4070381571c97ab7df9861/cloud/images/favicons/onecloud/super_cloud.png" alt="GCP" onerror="this.outerHTML='<div class=card-logo-fallback>G</div>'">
+          <div>
+            <div class="card-title">GCP Data Engineering</div>
+            <div class="card-sub">Complete Deep-Dive Guide</div>
+          </div>
+        </div>
+        <div class="card-desc">BigQuery, Dataflow, Pub/Sub, Dataproc, Cloud Composer — architecture, optimization, and production patterns.</div>
+        <div class="card-stats">
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>24</span> sections</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg><span>30</span> diagrams</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>96</span> code</div>
+        </div>
+      </div>
+    </a>
+
+    <!-- Flink -->
+    <a class="card" href="flink.html" style="--accent:#E6526F">
+      <div class="card-inner">
+        <div class="card-header">
+          <img class="card-logo" src="https://flink.apache.org/img/flink-header-logo.svg" alt="Flink" onerror="this.outerHTML='<div class=card-logo-fallback>F</div>'">
+          <div>
+            <div class="card-title">Apache Flink</div>
+            <div class="card-sub">Deep-Dive Engineering Guide</div>
+          </div>
+        </div>
+        <div class="card-desc">Stream processing from first principles — execution model, state management, checkpoints, Flink SQL, and PyFlink.</div>
+        <div class="card-stats">
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>26</span> sections</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg><span>27</span> diagrams</div>
+        </div>
+      </div>
+    </a>
+
+    <!-- Kafka -->
+    <a class="card" href="kafka.html" style="--accent:#b5b5b5">
+      <div class="card-inner">
+        <div class="card-header">
+          <img class="card-logo" src="https://kafka.apache.org/logos/kafka_logo--simple.png" alt="Kafka" onerror="this.outerHTML='<div class=card-logo-fallback>K</div>'">
+          <div>
+            <div class="card-title">Apache Kafka</div>
+            <div class="card-sub">Complete Deep-Dive Guide</div>
+          </div>
+        </div>
+        <div class="card-desc">Distributed event streaming — broker architecture, replication, log compaction, producer delivery guarantees.</div>
+        <div class="card-stats">
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>8</span> sections</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg><span>23</span> diagrams</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>27</span> code</div>
+        </div>
+      </div>
+    </a>
+
+    <!-- Data Modeling -->
+    <a class="card" href="data_modeling.html" style="--accent:#7C3AED">
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-logo-fallback">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+          </div>
+          <div>
+            <div class="card-title">Data Warehouse & Modeling</div>
+            <div class="card-sub">Complete Deep-Dive Guide</div>
+          </div>
+        </div>
+        <div class="card-desc">Kimball, Inmon, Data Vault 2.0, star schemas, SCD patterns, dbt, medallion architecture, and governance.</div>
+        <div class="card-stats">
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>3</span> sections</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg><span>6</span> diagrams</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>5</span> code</div>
+        </div>
+      </div>
+    </a>
+
+    <!-- SQL -->
+    <a class="card" href="sql.html" style="--accent:#336791">
+      <div class="card-inner">
+        <div class="card-header">
+          <img class="card-logo" src="https://wiki.postgresql.org/images/a/a4/PostgreSQL_logo.3colors.svg" alt="SQL" onerror="this.outerHTML='<div class=card-logo-fallback>Q</div>'">
+          <div>
+            <div class="card-title">SQL Deep-Dive</div>
+            <div class="card-sub">Engineering Guide</div>
+          </div>
+        </div>
+        <div class="card-desc">Query engines, optimizer internals, logical execution order, join algorithms, and production patterns.</div>
+        <div class="card-stats">
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>2</span> sections</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg><span>3</span> diagrams</div>
+          <div class="card-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>8</span> code</div>
+        </div>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- ===== COMING SOON ===== -->
+  <div class="section-title">Coming Soon</div>
+
+  <div class="grid">
+    <div class="card-soon" style="animation-delay:.1s">
+      <div class="card-soon-icon">🧪</div>
+      <div class="card-soon-text">Data Science</div>
+      <div class="card-soon-badge">Planned</div>
+    </div>
+    <div class="card-soon" style="animation-delay:.2s">
+      <div class="card-soon-icon">🐍</div>
+      <div class="card-soon-text">Python</div>
+      <div class="card-soon-badge">Planned</div>
+    </div>
+    <div class="card-soon" style="animation-delay:.3s">
+      <div class="card-soon-icon">🌐</div>
+      <div class="card-soon-text">Web Development</div>
+      <div class="card-soon-badge">Planned</div>
+    </div>
+    <div class="card-soon" style="animation-delay:.4s">
+      <div class="card-soon-icon">⚙️</div>
+      <div class="card-soon-text">DevOps</div>
+      <div class="card-soon-badge">Planned</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">Data Engineering Knowledge Base — Deep-Dive Reference Library</div>
+
+</body>
+</html>

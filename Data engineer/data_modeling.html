@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Warehouse & Data Modeling — Complete Deep-Dive Guide</title>
+<link rel="stylesheet" href="../_shared/styles.css">
+<style>
+/* Data Modeling — topic-specific vars and card-based layout */
+:root{--d:#7C3AED;--ac:#7C3AED;--e:#2ECC71;
+  --dw-fact:#7C3AED;--dw-dim:#3B82F6;--dw-scd:#F59E0B;--dw-star:#2ECC71;
+  --dv-hub:#EF4444;--dv-link:#F97316;--dv-sat:#06B6D4;
+  --staging:#9CA3AF;--curated:#5DB85B;--consumption:#8B5CF6;--etl:#EC4899;
+  --ic:#F59E0B;--ib:#FFFBEB;--pc:#EF4444;--pb:#FEF2F2;--nc:#10B981;--nb:#ECFDF5}
+
+/* Card-based .gc layout */
+.gc{background:#fff;border-radius:20px;margin-bottom:48px;padding:28px 30px;
+  box-shadow:0 2px 8px rgba(0,0,0,.03);border:1px solid #E2E8F0}
+
+/* Part header tweaks */
+.ph{padding:28px 32px;border-radius:24px;margin-bottom:30px}
+.ph .pl{color:var(--dw-fact)}
+
+/* Heading overrides */
+h2.st{display:inline-block;border-bottom:4px solid var(--dw-fact);background:none;padding:0 0 8px 0;margin:0 0 20px 0}
+h3.ss{border-bottom:none;padding-left:0}
+
+/* Sidebar brand colors */
+#sidebar{background:#0f172a;border-right-color:#1e293b}
+#sidebar .sb-head{background:#0f172a}
+#sb-progress-bar{background:linear-gradient(90deg,#7C3AED,#2ECC71)}
+#sidebar nav a.active{background:linear-gradient(135deg,#7C3AED,#6d28d9)}
+#sidebar nav a .sn{color:#7C3AED;background:#f3f0ff}
+#sidebar nav a.active .sn{color:#fff;background:rgba(255,255,255,.25)}
+.sb-part-label{color:#a5f3c3}
+
+/* Print */
+@media print{
+  .gc{box-shadow:none;border:none;page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<button id="sb-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">&#9776;</button>
+<aside id="sidebar">
+  <div id="sb-progress"><div id="sb-progress-bar"></div></div>
+  <div class="sb-head">
+    <div class="sb-head-row">
+      <svg class="sb-head-icon" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#7C3AED"/><stop offset="100%" stop-color="#2ECC71"/>
+        </linearGradient></defs>
+        <circle cx="14" cy="14" r="12" fill="url(#sg)"/>
+        <text x="14" y="19" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">D</text>
+      </svg>
+      <div>
+        <div class="sb-brand">Data Warehouse</div>
+        <div class="sb-title">Deep-Dive Guide</div>
+      </div>
+    </div>
+  </div>
+  <nav>
+    <div class="sb-part-label">Foundations</div>
+    <a href="#sec1"><span class="sn">01</span>Why Warehouses Exist</a>
+    <a href="#sec2"><span class="sn">02</span>Kimball vs Inmon vs Vault</a>
+    <a href="#sec3"><span class="sn">03</span>Modern Stack &amp; Lakehouse</a>
+
+    <div class="sb-part-label">Kimball Dimensional</div>
+    <a href="#sec4"><span class="sn">04</span>Star Schema &amp; Grain</a>
+    <a href="#sec5"><span class="sn">05</span>Fact Table Design</a>
+    <a href="#sec6"><span class="sn">06</span>Dimension Patterns</a>
+    <a href="#sec7"><span class="sn">07</span>SCD Types 0-7</a>
+    <a href="#sec8"><span class="sn">08</span>Bus Matrix</a>
+
+    <div class="sb-part-label">Data Vault 2.0</div>
+    <a href="#sec9"><span class="sn">09</span>Hubs, Links, Satellites</a>
+    <a href="#sec10"><span class="sn">10</span>PIT, Bridge, Effectivity</a>
+
+    <div class="sb-part-label">Normalization &amp; Inmon</div>
+    <a href="#sec11"><span class="sn">11</span>Normalization 1NF-5NF</a>
+    <a href="#sec12"><span class="sn">12</span>Inmon EDW</a>
+
+    <div class="sb-part-label">Modern Patterns</div>
+    <a href="#sec13"><span class="sn">13</span>One Big Table (OBT)</a>
+    <a href="#sec14"><span class="sn">14</span>Activity Schema</a>
+    <a href="#sec15"><span class="sn">15</span>Semantic/Metrics Layer</a>
+
+    <div class="sb-part-label">Architecture</div>
+    <a href="#sec16"><span class="sn">16</span>Layered (stg/int/mart)</a>
+    <a href="#sec17"><span class="sn">17</span>Medallion</a>
+    <a href="#sec18"><span class="sn">18</span>Data Marts &amp; Reverse ETL</a>
+
+    <div class="sb-part-label">Keys &amp; SCD Deep</div>
+    <a href="#sec19"><span class="sn">19</span>Surrogate Keys</a>
+    <a href="#sec20"><span class="sn">20</span>Key Pipeline</a>
+    <a href="#sec21"><span class="sn">21</span>SCD Implementation</a>
+    <a href="#sec22"><span class="sn">22</span>Bitemporal Modeling</a>
+
+    <div class="sb-part-label">ETL/ELT &amp; dbt</div>
+    <a href="#sec23"><span class="sn">23</span>ETL vs ELT</a>
+    <a href="#sec24"><span class="sn">24</span>dbt Deep Dive</a>
+    <a href="#sec25"><span class="sn">25</span>Incremental Patterns</a>
+
+    <div class="sb-part-label">Quality &amp; Governance</div>
+    <a href="#sec26"><span class="sn">26</span>Data Quality</a>
+    <a href="#sec27"><span class="sn">27</span>Governance &amp; PII</a>
+
+    <div class="sb-part-label">Performance</div>
+    <a href="#sec28"><span class="sn">28</span>Performance Tuning</a>
+    <a href="#sec29"><span class="sn">29</span>Cost Optimization</a>
+
+    <div class="sb-part-label">Process</div>
+    <a href="#sec30"><span class="sn">30</span>10-Step Design</a>
+
+    <div class="sb-part-label">Appendices</div>
+    <a href="#appA"><span class="sn">A</span>Comparison Matrix</a>
+    <a href="#appB"><span class="sn">B</span>Complete Data Flow</a>
+    <a href="#appC"><span class="sn">C</span>dbt Project Structure</a>
+    <a href="#appD"><span class="sn">D</span>40 Modeling Cookbook</a>
+    <a href="#appE"><span class="sn">E</span>SCD Decision Tree</a>
+    <a href="#appF"><span class="sn">F</span>Naming Conventions</a>
+    <a href="#appG"><span class="sn">G</span>Platform Comparison</a>
+  </nav>
+</aside>
+
+  <!-- ████████████████████████████████████████████████████████████████ -->
+  <!-- ██                         SECTION 1                            ██ -->
+  <!-- ████████████████████████████████████████████████████████████████ -->
+  <div id="sec1" class="gc">
+    <div class="ph">
+      <div class="pl">Part I — Foundations</div>
+      <h1>Why Data Warehouses Exist</h1>
+      <div>The analytical data problem — OLTP vs OLAP, evolution, lakehouse</div>
+    </div>
+
+    <h2 class="st">§1 Why Data Warehouses Exist — The Analytical Data Problem</h2>
+    
+    <div class="ct">
+      <p><strong>1.1 The OLTP vs OLAP Divide</strong><br>
+      <strong>OLTP (Online Transaction Processing)</strong> systems (PostgreSQL, MySQL, DynamoDB) are optimized for high‑frequency, low‑latency reads/writes of individual rows — supporting applications. <strong>OLAP (Online Analytical Processing)</strong> systems are optimized for complex aggregation queries across billions of rows. Why can’t OLTP serve analytics? Row‑oriented storage is inefficient for columnar scans; application schemas are normalized (write‑optimized) not denormalized (query‑optimized); running analytics on production DB degrades performance; and OLTP often lacks full history.</p>
+      
+      <p><strong>1.2 What Is a Data Warehouse?</strong><br>
+      Bill Inmon’s definition (1992): <em>“A subject‑oriented, integrated, time‑variant, non‑volatile collection of data supporting management’s decision‑making process.”</em><br>
+      - <strong>Subject‑oriented:</strong> Organized around business subjects (customers, orders, products) not applications.<br>
+      - <strong>Integrated:</strong> Data from multiple source systems conformed into a single truth.<br>
+      - <strong>Time‑variant:</strong> Maintains historical data; every record has a time dimension.<br>
+      - <strong>Non‑volatile:</strong> Data is loaded and queried, not updated in place.</p>
+    </div>
+
+    <!-- SVG Diagram: Evolution -->
+    <div class="dc">
+      <svg viewBox="0 0 860 200" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+        <rect width="860" height="200" fill="#F8F9FA" rx="12"/>
+        <text x="430" y="28" text-anchor="middle" font-size="14" font-weight="700" fill="#1A1A2E">Evolution of Data Warehousing — 1990s to 2025</text>
+        <rect x="20" y="55" width="140" height="60" fill="#9CA3AF" rx="6"/><text x="90" y="85" text-anchor="middle" fill="#fff" font-weight="700">Era 1</text><text x="90" y="100" text-anchor="middle" fill="#fff" font-size="9">Traditional EDW</text>
+        <rect x="175" y="55" width="140" height="60" fill="#6B7280" rx="6"/><text x="245" y="85" text-anchor="middle" fill="#fff" font-weight="700">Era 2</text><text x="245" y="100" text-anchor="middle" fill="#fff" font-size="9">Hadoop Lake</text>
+        <rect x="330" y="55" width="140" height="60" fill="#3B82F6" rx="6"/><text x="400" y="85" text-anchor="middle" fill="#fff" font-weight="700">Era 3</text><text x="400" y="100" text-anchor="middle" fill="#fff" font-size="9">Cloud DW</text>
+        <rect x="485" y="55" width="140" height="60" fill="#8B5CF6" rx="6"/><text x="555" y="85" text-anchor="middle" fill="#fff" font-weight="700">Era 4</text><text x="555" y="100" text-anchor="middle" fill="#fff" font-size="9">Modern Stack (dbt)</text>
+        <rect x="640" y="55" width="140" height="60" fill="#2ECC71" rx="6"/><text x="710" y="85" text-anchor="middle" fill="#fff" font-weight="700">Era 5</text><text x="710" y="100" text-anchor="middle" fill="#fff" font-size="9">Lakehouse</text>
+        <path d="M160 85 L175 85 M315 85 L330 85 M470 85 L485 85 M625 85 L640 85" stroke="#555" stroke-width="1.5" marker-end="url(#arrowEvo)"/>
+        <defs><marker id="arrowEvo" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#555"/></marker></defs>
+        <text x="430" y="175" text-anchor="middle" font-size="9" fill="#555" font-style="italic">Figure 1.1 — Five eras of data warehouse architecture</text>
+      </svg>
+    </div>
+
+    <div class="ct">
+      <p><strong>1.3 Data Warehouse vs Data Lake vs Data Lakehouse</strong></p>
+      <table class="tb">
+        <thead><tr><th>Aspect</th><th>Data Warehouse</th><th>Data Lake</th><th>Data Lakehouse</th></tr></thead>
+        <tbody>
+          <tr><td>Storage format</td><td>Proprietary</td><td>Open files (Parquet)</td><td>Open table format (Iceberg/Delta)</td></tr>
+          <tr><td>Schema</td><td>Schema-on-write</td><td>Schema-on-read</td><td>Schema-on-write + evolution</td></tr>
+          <tr><td>Query performance</td><td>Excellent</td><td>Variable</td><td>Good–Excellent</td></tr>
+          <tr><td>Best for</td><td>BI, reporting</td><td>ML, raw exploration</td><td>Unified analytics + ML</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="co co-n">
+      <span class="cl">🎯 Interview Tip</span>
+      “What’s the difference between a data warehouse, data lake, and data lakehouse?” — A warehouse has curated, schema‑enforced data optimized for BI. A lake is cheap raw storage with schema‑on‑read. A lakehouse adds warehouse features (ACID, schema, performance) to lake storage using open formats like Iceberg.
+    </div>
+
+    <div class="ct">
+      <p><strong>1.4 Why OLTP Cannot Serve Analytics — Deep Technical Reasons</strong></p>
+      <ul>
+        <li><strong>Row‑oriented storage:</strong> OLTP stores rows contiguously; analytical queries often need only 2–3 columns across millions of rows → columnar storage (Parquet, ORC) is 10–100× faster.</li>
+        <li><strong>Indexing mismatch:</strong> OLTP uses B‑tree indexes for point lookups; analytics benefits from sort‑order, zone maps, and bloom filters.</li>
+        <li><strong>Resource contention:</strong> Heavy analytical queries consume CPU and I/O, starving transaction processing → SLAs violated.</li>
+        <li><strong>Historical data:</strong> OLTP purges or archives old records; warehouses preserve history via SCD and fact tables.</li>
+      </ul>
+    </div>
+
+    <div class="dc">
+      <svg viewBox="0 0 860 220" xmlns="http://www.w3.org/2000/svg">
+        <rect width="860" height="220" fill="#F8F9FA" rx="12"/>
+        <text x="430" y="25" text-anchor="middle" font-size="14" font-weight="700">OLTP vs OLAP — Architectural Differences</text>
+        <rect x="30" y="50" width="380" height="140" fill="#E8F0FE" rx="10" stroke="#3B82F6" stroke-width="2"/>
+        <text x="220" y="75" text-anchor="middle" font-weight="700">OLTP (Transactional)</text>
+        <text x="50" y="100">• Row-oriented storage</text><text x="50" y="120">• High concurrency, low latency</text>
+        <text x="50" y="140">• Normalized schema (3NF)</text><text x="50" y="160">• Current state only</text>
+        <rect x="450" y="50" width="380" height="140" fill="#E8F5E9" rx="10" stroke="#2ECC71" stroke-width="2"/>
+        <text x="640" y="75" text-anchor="middle" font-weight="700">OLAP (Analytical)</text>
+        <text x="470" y="100">• Columnar storage (Parquet, ORC)</text>
+        <text x="470" y="120">• Large scans, aggregations</text>
+        <text x="470" y="140">• Denormalized star schema</text>
+        <text x="470" y="160">• Full history (SCD, fact tables)</text>
+        <text x="430" y="210" text-anchor="middle" font-size="9" font-style="italic">Figure 1.2 — Contrasting design principles</text>
+      </svg>
+    </div>
+
+    <div class="co co-i">
+      <span class="cl">⚙️ Engineering Insight</span>
+      The cloud data warehouse (Snowflake, BigQuery) and lakehouse (Iceberg + Trino) have blurred the line: they offer columnar storage, separation of compute/storage, and native support for semi‑structured data. Yet the core principle remains: the warehouse is the <strong>system of record for analytics</strong>, not a transaction system.
+    </div>
+
+    <div class="co co-p">
+      <span class="cl">⚠️ Common Pitfall</span>
+      “We don’t need a warehouse, we’ll just use our production database.” This leads to: (1) slow reports impacting customer‑facing transactions, (2) inability to join across multiple source systems, (3) no historical change tracking. Every mature data practice eventually builds a warehouse — either cloud native or lakehouse.
+    </div>
+
+    <div class="ct">
+      <p><strong>1.5 Key Takeaways — Section 1</strong></p>
+      <table class="tb">
+        <thead><tr><th>Concept</th><th>Core Idea</th><th>Warehouse Implementation</th></tr></thead>
+        <tbody>
+          <tr><td>OLTP vs OLAP</td><td>Transactional vs analytical workloads</td><td>Separate warehouse for analytics</td></tr>
+          <tr><td>Integration</td><td>Unify multiple source systems</td><td>ETL/ELT, conformed dimensions</td></tr>
+          <tr><td>Time variance</td><td>Track history</td><td>SCD, fact tables with date keys</td></tr>
+          <tr><td>Lakehouse</td><td>Open formats + warehouse features</td><td>Delta/Iceberg + Spark/Snowflake</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="co co-n">
+      <span class="cl">📐 Modeling Rule</span>
+      Always start any data warehouse design by identifying the business processes, then declaring the grain. Without a clear grain, your fact table will produce incorrect aggregations. The grain is the “one row per _____” statement — write it down before writing any SQL.
+    </div>
+  </div>
+
+  <!-- ========== PLACEHOLDER SECTIONS (2–30) ========== -->
+  <!-- You will replace these with full content for each section following the same pattern -->
+
+<!-- ==================== SECTION 2 ==================== -->
+<div id="sec2" class="gc">
+  <div class="ph">
+    <div class="pl">Part I — Foundations</div>
+    <h1>Kimball vs Inmon vs Data Vault</h1>
+    <div>Three schools of data warehouse design — trade-offs, strengths, and when to use each</div>
+  </div>
+
+  <h2 class="st">§2 — Kimball vs Inmon vs Data Vault — Three Schools of Thought</h2>
+
+  <!-- 2.1 Three Philosophies SVG -->
+  <div class="ct">
+    <p><strong>2.1 The Three Philosophies</strong><br>
+    The three dominant approaches to data warehouse design differ in their entry point, delivery methodology, and architectural priorities. Understanding each is essential for making the right choice for your organization.</p>
+  </div>
+
+  <div class="dc">
+    <svg viewBox="0 0 1100 500" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+      <defs>
+        <marker id="arrK" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#555"/></marker>
+        <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.1"/></filter>
+      </defs>
+      <rect width="1100" height="500" fill="#F8F9FA" rx="16"/>
+      <text x="550" y="28" text-anchor="middle" font-size="16" font-weight="700" fill="#1A1A2E">Three Data Warehouse Philosophies — Kimball, Inmon, Data Vault</text>
+
+      <!-- ===== Panel 1: Kimball ===== -->
+      <rect x="20" y="50" width="340" height="420" rx="12" fill="#fff" stroke="#2ECC71" stroke-width="2" filter="url(#shadow)"/>
+      <rect x="20" y="50" width="340" height="40" rx="12" fill="#2ECC71"/>
+      <text x="190" y="76" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Kimball (Bottom-Up)</text>
+
+      <rect x="40" y="105" width="100" height="35" rx="6" fill="#6B7280"/><text x="90" y="128" text-anchor="middle" fill="#fff" font-size="9">Sources</text>
+      <line x1="140" y1="122" x2="170" y2="122" stroke="#555" stroke-width="1.5" marker-end="url(#arrK)"/>
+      <rect x="175" y="105" width="80" height="35" rx="6" fill="#EC4899"/><text x="215" y="128" text-anchor="middle" fill="#fff" font-size="9">ETL</text>
+      <line x1="255" y1="122" x2="285" y2="122" stroke="#555" stroke-width="1.5" marker-end="url(#arrK)"/>
+      <rect x="290" y="100" width="55" height="45" rx="6" fill="#7C3AED"/><text x="317" y="125" text-anchor="middle" fill="#fff" font-size="8">Star</text><text x="317" y="137" text-anchor="middle" fill="#fff" font-size="8">Mart</text>
+
+      <rect x="40" y="160" width="300" height="60" rx="8" fill="#E8F5E9" stroke="#2ECC71" stroke-dasharray="4,2"/>
+      <text x="190" y="180" text-anchor="middle" font-size="9" font-weight="700" fill="#2ECC71">Key Idea</text>
+      <text x="190" y="198" text-anchor="middle" font-size="9" fill="#333">Build one data mart at a time</text>
+      <text x="190" y="212" text-anchor="middle" font-size="9" fill="#333">Conformed dimensions connect them</text>
+
+      <text x="190" y="250" text-anchor="middle" font-size="10" font-weight="700" fill="#2ECC71">Strengths</text>
+      <text x="55" y="270" font-size="9" fill="#333">✓ Intuitive for business users</text>
+      <text x="55" y="286" font-size="9" fill="#333">✓ Fast query performance</text>
+      <text x="55" y="302" font-size="9" fill="#333">✓ Incremental delivery</text>
+
+      <text x="190" y="330" text-anchor="middle" font-size="10" font-weight="700" fill="#EF4444">Weaknesses</text>
+      <text x="55" y="350" font-size="9" fill="#333">⚠ Harder enterprise consistency</text>
+      <text x="55" y="366" font-size="9" fill="#333">⚠ "Spaghetti marts" risk</text>
+
+      <text x="190" y="400" text-anchor="middle" font-size="9" fill="#555" font-style="italic">Best for: BI-heavy orgs,</text>
+      <text x="190" y="416" text-anchor="middle" font-size="9" fill="#555" font-style="italic">Snowflake/BigQuery</text>
+
+      <!-- ===== Panel 2: Inmon ===== -->
+      <rect x="380" y="50" width="340" height="420" rx="12" fill="#fff" stroke="#3B82F6" stroke-width="2" filter="url(#shadow)"/>
+      <rect x="380" y="50" width="340" height="40" rx="12" fill="#3B82F6"/>
+      <text x="550" y="76" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Inmon (Top-Down)</text>
+
+      <rect x="400" y="105" width="70" height="35" rx="6" fill="#6B7280"/><text x="435" y="128" text-anchor="middle" fill="#fff" font-size="9">Sources</text>
+      <line x1="470" y1="122" x2="495" y2="122" stroke="#555" marker-end="url(#arrK)"/>
+      <rect x="500" y="105" width="60" height="35" rx="6" fill="#EC4899"/><text x="530" y="128" text-anchor="middle" fill="#fff" font-size="9">ETL</text>
+      <line x1="560" y1="122" x2="585" y2="122" stroke="#555" marker-end="url(#arrK)"/>
+      <rect x="590" y="100" width="110" height="45" rx="6" fill="#F59E0B"/><text x="645" y="125" text-anchor="middle" fill="#fff" font-size="9">EDW (3NF)</text>
+
+      <line x1="645" y1="145" x2="645" y2="170" stroke="#555" marker-end="url(#arrK)"/>
+      <rect x="500" y="175" width="60" height="35" rx="6" fill="#EC4899"/><text x="530" y="198" text-anchor="middle" fill="#fff" font-size="9">ETL</text>
+      <line x1="560" y1="192" x2="585" y2="192" stroke="#555" marker-end="url(#arrK)"/>
+      <rect x="590" y="180" width="110" height="40" rx="6" fill="#7C3AED"/><text x="645" y="205" text-anchor="middle" fill="#fff" font-size="9">Department</text><text x="645" y="215" text-anchor="middle" fill="#fff" font-size="9">Marts</text>
+
+      <rect x="400" y="235" width="300" height="60" rx="8" fill="#E8F0FE" stroke="#3B82F6" stroke-dasharray="4,2"/>
+      <text x="550" y="255" text-anchor="middle" font-size="9" font-weight="700" fill="#3B82F6">Key Idea</text>
+      <text x="550" y="273" text-anchor="middle" font-size="9" fill="#333">Build single source of truth first (3NF)</text>
+      <text x="550" y="287" text-anchor="middle" font-size="9" fill="#333">Then derive marts</text>
+
+      <text x="550" y="320" text-anchor="middle" font-size="10" font-weight="700" fill="#3B82F6">Strengths</text>
+      <text x="415" y="340" font-size="9" fill="#333">✓ Enterprise consistency</text>
+      <text x="415" y="356" font-size="9" fill="#333">✓ Single source of truth</text>
+      <text x="415" y="372" font-size="9" fill="#333">✓ Handles complex relationships</text>
+
+      <text x="550" y="400" text-anchor="middle" font-size="9" fill="#555" font-style="italic">Best for: large enterprises,</text>
+      <text x="550" y="416" text-anchor="middle" font-size="9" fill="#555" font-style="italic">finance/healthcare</text>
+
+      <!-- ===== Panel 3: Data Vault ===== -->
+      <rect x="740" y="50" width="340" height="420" rx="12" fill="#fff" stroke="#EF4444" stroke-width="2" filter="url(#shadow)"/>
+      <rect x="740" y="50" width="340" height="40" rx="12" fill="#EF4444"/>
+      <text x="910" y="76" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Data Vault 2.0</text>
+
+      <rect x="760" y="105" width="70" height="35" rx="6" fill="#6B7280"/><text x="795" y="128" text-anchor="middle" fill="#fff" font-size="9">Sources</text>
+      <line x1="830" y1="122" x2="855" y2="122" stroke="#555" marker-end="url(#arrK)"/>
+      <rect x="860" y="105" width="60" height="35" rx="6" fill="#EC4899"/><text x="890" y="128" text-anchor="middle" fill="#fff" font-size="9">ELT</text>
+      <line x1="920" y1="122" x2="945" y2="122" stroke="#555" marker-end="url(#arrK)"/>
+      <rect x="950" y="95" width="110" height="50" rx="6" fill="#F97316"/><text x="1005" y="118" text-anchor="middle" fill="#fff" font-size="8">Raw Vault</text><text x="1005" y="132" text-anchor="middle" fill="#fff" font-size="8">Hubs/Links/Sats</text>
+
+      <line x1="1005" y1="145" x2="1005" y2="165" stroke="#555" marker-end="url(#arrK)"/>
+      <rect x="920" y="170" width="80" height="40" rx="6" fill="#F59E0B"/><text x="960" y="195" text-anchor="middle" fill="#fff" font-size="8">Business</text><text x="960" y="205" text-anchor="middle" fill="#fff" font-size="8">Vault</text>
+      <line x1="920" y1="190" x2="890" y2="190" stroke="#555" marker-end="url(#arrK)"/>
+      <rect x="760" y="170" width="120" height="40" rx="6" fill="#7C3AED"/><text x="820" y="195" text-anchor="middle" fill="#fff" font-size="8">Information</text><text x="820" y="205" text-anchor="middle" fill="#fff" font-size="8">Marts (Star)</text>
+
+      <rect x="760" y="230" width="300" height="60" rx="8" fill="#FEF2F2" stroke="#EF4444" stroke-dasharray="4,2"/>
+      <text x="910" y="250" text-anchor="middle" font-size="9" font-weight="700" fill="#EF4444">Key Idea</text>
+      <text x="910" y="268" text-anchor="middle" font-size="9" fill="#333">Load raw history first (auditable)</text>
+      <text x="910" y="282" text-anchor="middle" font-size="9" fill="#333">Apply business rules in business vault</text>
+
+      <text x="910" y="320" text-anchor="middle" font-size="10" font-weight="700" fill="#EF4444">Strengths</text>
+      <text x="775" y="340" font-size="9" fill="#333">✓ Full audit trail</text>
+      <text x="775" y="356" font-size="9" fill="#333">✓ Agile (add sources without redesign)</text>
+      <text x="775" y="372" font-size="9" fill="#333">✓ Parallel loading</text>
+
+      <text x="910" y="400" text-anchor="middle" font-size="9" fill="#555" font-style="italic">Best for: regulated industries,</text>
+      <text x="910" y="416" text-anchor="middle" font-size="9" fill="#555" font-style="italic">finance, government</text>
+
+      <text x="550" y="485" text-anchor="middle" font-size="10" fill="#555" font-style="italic">Figure 2.1 — Each approach has different entry points and design priorities</text>
+    </svg>
+  </div>
+
+  <!-- 2.2 Kimball Deep Dive -->
+  <h3 class="ss">2.2 Kimball (Dimensional Modeling)</h3>
+  <div class="ct">
+    <p><strong>Philosophy:</strong> Build dimensional data marts incrementally; connect them via conformed dimensions. Bottom-up delivery allows teams to deliver business value quickly, starting with the most critical business processes.</p>
+    <p><strong>Core structure:</strong> Star schema (fact tables + dimension tables). Facts store quantitative measures; dimensions store descriptive attributes.</p>
+    <p><strong>Strengths:</strong> Intuitive for business users (non-technical stakeholders can understand star schemas), fast query performance (fewer joins than normalized models), incremental delivery (start with one mart, expand over time).</p>
+    <p><strong>Weaknesses:</strong> Harder to maintain enterprise consistency without strong governance; can become "spaghetti marts" where dimensions are not truly conformed; redesign may be needed when new data sources arrive.</p>
+    <p><strong>Best for:</strong> BI-heavy organizations, known analytical requirements, Snowflake/BigQuery/Databricks environments, teams practicing agile delivery.</p>
+    <p><strong>Key concepts:</strong> grain, conformed dimensions, bus matrix, surrogate keys, SCDs, fact table types.</p>
+  </div>
+
+  <!-- 2.3 Inmon Deep Dive -->
+  <h3 class="ss">2.3 Inmon (Enterprise Data Warehouse)</h3>
+  <div class="ct">
+    <p><strong>Philosophy:</strong> Build a single, normalized (3NF) enterprise data warehouse as the single source of truth; derive dimensional marts from it. Top-down design prioritizes enterprise consistency over fast delivery.</p>
+    <p><strong>Core structure:</strong> Normalized relational model (3NF) — tables are highly normalized to eliminate redundancy and ensure data integrity at the atomic level.</p>
+    <p><strong>Strengths:</strong> Enterprise consistency (one version of the truth), single source of truth for all downstream systems, handles complex relationships (many-to-many, hierarchies) naturally in 3NF.</p>
+    <p><strong>Weaknesses:</strong> Slow to deliver initial value (must build the entire EDW before any marts), complex ETL (normalization requires careful design), 3NF model difficult for analysts to query directly (requires expert SQL skills).</p>
+    <p><strong>Best for:</strong> Large enterprises with complex data relationships, compliance-heavy industries (finance, healthcare, insurance), organizations with mature data governance.</p>
+    <p><strong>Key concepts:</strong> corporate information factory (CIF), subject areas, dependent data marts, operational data store (ODS).</p>
+  </div>
+
+  <!-- 2.4 Data Vault 2.0 Deep Dive -->
+  <h3 class="ss">2.4 Data Vault 2.0</h3>
+  <div class="ct">
+    <p><strong>Philosophy:</strong> Load raw business data into a historized, auditable vault (hubs + links + satellites); apply business rules downstream. Separates raw data storage from business logic application.</p>
+    <p><strong>Core structure:</strong> Hub (business keys — unique list of business entities), Link (relationships between hubs — many-to-many), Satellite (context/attributes — full history of each hub or link).</p>
+    <p><strong>Strengths:</strong> Full audit trail (every change tracked via satellites), agile (add new sources without redesigning existing structures), parallel loading (hash keys enable independent loads), separation of raw data from business rules (raw vault never changes, business vault applies transformations).</p>
+    <p><strong>Weaknesses:</strong> Complex to learn (steep learning curve for teams), poor direct query performance (must derive marts for BI), high join count for simple queries (raw vault queries often require 5–10 joins).</p>
+    <p><strong>Best for:</strong> Enterprises needing full audit trails (finance, government, healthcare), agile data teams that frequently onboard new sources, multi-source integration at scale (dozens to hundreds of source systems).</p>
+    <p><strong>Key concepts:</strong> hash keys (MD5/SHA of business keys), load date, record source, PIT tables (point-in-time), bridge tables, effectivity satellites.</p>
+  </div>
+
+  <!-- 2.5 When to Use Which Table -->
+  <h3 class="ss">2.5 When to Use Which</h3>
+  <div class="ct">
+    <table class="tb">
+      <thead><tr><th>Factor</th><th>Kimball</th><th>Inmon</th><th>Data Vault</th></tr></thead>
+      <tbody>
+        <tr><td>Team size</td><td>Small–Medium</td><td>Large</td><td>Medium–Large</td></tr>
+        <tr><td>Delivery speed</td><td>Fast (incremental)</td><td>Slow (top-down)</td><td>Medium (vault first, then marts)</td></tr>
+        <tr><td>Query directness</td><td>✅ Star schema is user-friendly</td><td>❌ 3NF requires expert SQL</td><td>❌ Vault requires derived marts</td></tr>
+        <tr><td>Auditability</td><td>Moderate</td><td>Moderate</td><td>✅ Full (every change tracked)</td></tr>
+        <tr><td>Agility for new sources</td><td>Moderate (may need mart redesign)</td><td>Low (EDW redesign)</td><td>✅ High (add hub/link/sat)</td></tr>
+        <tr><td>Modern Data Stack fit</td><td>✅ dbt + star schema is mainstream</td><td>Moderate</td><td>Growing (dbt-vault, AutomateDV)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SQL Example: Kimball Star Schema Query -->
+  <div class="cbw">
+    <div class="cbh"><span>Kimball star schema query (user-friendly)</span><span class="lb">SQL</span></div>
+    <pre class="cb">-- Intuitive: few joins, business-friendly column names
+SELECT 
+    d.year,
+    d.quarter,
+    c.segment,
+    SUM(f.revenue) AS total_revenue
+FROM fact_orders f
+JOIN dim_date d ON f.date_key = d.date_key
+JOIN dim_customer c ON f.customer_key = c.customer_key
+WHERE d.year = 2024
+GROUP BY d.year, d.quarter, c.segment;</pre>
+  </div>
+
+  <!-- SQL Example: Data Vault Hash Key Generation -->
+  <div class="cbw">
+    <div class="cbh"><span>Data Vault hash key generation (deterministic, parallel)</span><span class="lb">SQL</span></div>
+    <pre class="cb">-- Hash key for Hub_Customer (MD5 of business key)
+SELECT 
+    MD5(UPPER(TRIM(customer_id))) AS hub_customer_hash_key,
+    customer_id AS customer_business_key,
+    CURRENT_TIMESTAMP AS load_date,
+    'source_crm' AS record_source
+FROM raw_customers
+WHERE customer_id NOT IN (SELECT customer_business_key FROM hub_customer);</pre>
+  </div>
+
+  <div class="co co-n">
+    <span class="cl">📐 Modeling Rule</span>
+    In 2025, the dominant production pattern is: <strong>Kimball-style dimensional models</strong> built in a layered architecture (staging → intermediate → marts) using <strong>dbt</strong> on a cloud warehouse (Snowflake/BigQuery/Databricks). Data Vault is used when auditability is a hard requirement (finance, government). Pure Inmon is rare in greenfield projects.
+  </div>
+
+  <div class="co co-i">
+    <span class="cl">⚙️ Engineering Insight</span>
+    Many organizations use a <strong>hybrid approach</strong>: Data Vault for the raw, auditable integration layer (bronze/silver), then Kimball-style star schemas for the gold layer (marts). This gives you auditability + business-friendly querying. dbt supports both via dbt-vault (Data Vault automation) and standard dimensional modeling.
+  </div>
+
+  <div class="co co-p">
+    <span class="cl">⚠️ Common Pitfall</span>
+    Choosing Data Vault "because it's modern" without an audit requirement adds unnecessary complexity. Data Vault's 5–10 table joins for simple queries will frustrate analysts. Always start with Kimball stars unless you have a specific need for full audit trails or extreme source system agility.
+  </div>
+
+  <div class="co co-n">
+    <span class="cl">🎯 Interview Tip</span>
+    "Which data warehouse methodology would you choose for a fintech startup?" — Start with Kimball stars for fast BI delivery. Add Data Vault later for the core transaction tables that require audit trails (ledger, payments). Pure Inmon is too slow for a startup. Show that you understand trade-offs, not just dogma.
+  </div>
+
+  <!-- ==================== SECTION 3 ==================== -->
+<div id="sec3" class="gc">
+  <div class="ph">
+    <div class="pl">Part I — Foundations</div>
+    <h1>The Modern Data Stack</h1>
+    <div>From ETL to ELT, dbt, and the Lakehouse — the 2025 reference architecture</div>
+  </div>
+
+  <h2 class="st">§3 — The Modern Data Stack — From ETL to ELT, dbt, and the Lakehouse</h2>
+
+  <!-- 3.1 Modern Data Stack Architecture SVG -->
+  <div class="ct">
+    <p><strong>3.1 Modern Data Stack Architecture</strong><br>
+    The modern data stack represents a paradigm shift from legacy ETL appliances to cloud-native, modular, SQL-centric tooling. Each component is best-in-class and connected via open interfaces.</p>
+  </div>
+
+  <div class="dc">
+    <svg viewBox="0 0 1100 650" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+      <defs>
+        <marker id="arrM" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#555"/></marker>
+        <filter id="shadowM" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.1"/></filter>
+      </defs>
+      <rect width="1100" height="650" fill="#F8F9FA" rx="16"/>
+      <text x="550" y="28" text-anchor="middle" font-size="16" font-weight="700" fill="#1A1A2E">Modern Data Stack — 2025 Reference Architecture</text>
+
+      <!-- ===== Main horizontal flow ===== -->
+      <!-- Source Systems -->
+      <rect x="30" y="60" width="130" height="90" rx="8" fill="#6B7280" filter="url(#shadowM)"/>
+      <text x="95" y="85" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">Source Systems</text>
+      <text x="95" y="102" text-anchor="middle" fill="#ddd" font-size="8">PostgreSQL, MySQL</text>
+      <text x="95" y="116" text-anchor="middle" fill="#ddd" font-size="8">Salesforce, Stripe</text>
+      <text x="95" y="130" text-anchor="middle" fill="#ddd" font-size="8">GA, APIs</text>
+
+      <line x1="160" y1="105" x2="195" y2="105" stroke="#555" stroke-width="1.5" marker-end="url(#arrM)"/>
+
+      <!-- Ingestion -->
+      <rect x="200" y="60" width="130" height="90" rx="8" fill="#EC4899" filter="url(#shadowM)"/>
+      <text x="265" y="85" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">Ingestion</text>
+      <text x="265" y="102" text-anchor="middle" fill="#ffe0f0" font-size="8">Fivetran, Airbyte</text>
+      <text x="265" y="116" text-anchor="middle" fill="#ffe0f0" font-size="8">Stitch, Debezium CDC</text>
+
+      <line x1="330" y1="105" x2="365" y2="105" stroke="#555" stroke-width="1.5" marker-end="url(#arrM)"/>
+
+      <!-- Cloud Warehouse -->
+      <rect x="370" y="60" width="140" height="90" rx="8" fill="#5DB85B" filter="url(#shadowM)"/>
+      <text x="440" y="85" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">Cloud Warehouse</text>
+      <text x="440" y="102" text-anchor="middle" fill="#d4f5d4" font-size="8">Snowflake, BigQuery</text>
+      <text x="440" y="116" text-anchor="middle" fill="#d4f5d4" font-size="8">Redshift, Databricks</text>
+
+      <line x1="510" y1="105" x2="545" y2="105" stroke="#555" stroke-width="1.5" marker-end="url(#arrM)"/>
+
+      <!-- Transformation -->
+      <rect x="550" y="60" width="130" height="90" rx="8" fill="#8B5CF6" filter="url(#shadowM)"/>
+      <text x="615" y="85" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">Transformation</text>
+      <text x="615" y="102" text-anchor="middle" fill="#e0d0f0" font-size="8">dbt, Spark</text>
+      <text x="615" y="116" text-anchor="middle" fill="#e0d0f0" font-size="8">SQL-first, versioned</text>
+
+      <line x1="680" y1="105" x2="715" y2="105" stroke="#555" stroke-width="1.5" marker-end="url(#arrM)"/>
+
+      <!-- BI / Analytics -->
+      <rect x="720" y="60" width="130" height="90" rx="8" fill="#F59E0B" filter="url(#shadowM)"/>
+      <text x="785" y="85" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">BI / Analytics</text>
+      <text x="785" y="102" text-anchor="middle" fill="#fff" font-size="8">Looker, Tableau</text>
+      <text x="785" y="116" text-anchor="middle" fill="#fff" font-size="8">Superset, Metabase</text>
+
+      <line x1="850" y1="105" x2="885" y2="105" stroke="#555" stroke-width="1.5" marker-end="url(#arrM)"/>
+
+      <!-- Reverse ETL -->
+      <rect x="890" y="60" width="130" height="90" rx="8" fill="#1ABC9C" filter="url(#shadowM)"/>
+      <text x="955" y="85" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">Reverse ETL</text>
+      <text x="955" y="102" text-anchor="middle" fill="#d0f5f0" font-size="8">Census, Hightouch</text>
+      <text x="955" y="116" text-anchor="middle" fill="#d0f5f0" font-size="8">Sync to SaaS</text>
+
+      <!-- ===== Cross-cutting layers ===== -->
+      <!-- Orchestration -->
+      <rect x="30" y="190" width="1000" height="50" rx="8" fill="#3B82F6" opacity="0.9" filter="url(#shadowM)"/>
+      <text x="530" y="215" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Orchestration: Airflow · Dagster · Prefect</text>
+      <text x="530" y="232" text-anchor="middle" fill="#d0e4ff" font-size="9">Schedule, monitor, retry, alert — spans entire data flow</text>
+      <!-- Vertical connectors -->
+      <line x1="265" y1="150" x2="265" y2="190" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="4,2"/>
+      <line x1="440" y1="150" x2="440" y2="190" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="4,2"/>
+      <line x1="615" y1="150" x2="615" y2="190" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="4,2"/>
+
+      <!-- Data Quality -->
+      <rect x="30" y="270" width="1000" height="50" rx="8" fill="#EF4444" opacity="0.9" filter="url(#shadowM)"/>
+      <text x="530" y="295" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Data Quality & Observability: Great Expectations · dbt tests · Monte Carlo · Elementary</text>
+      <text x="530" y="312" text-anchor="middle" fill="#ffcccc" font-size="9">Automated testing, anomaly detection, freshness monitoring, lineage</text>
+      <line x1="440" y1="240" x2="440" y2="270" stroke="#EF4444" stroke-width="1.5" stroke-dasharray="4,2"/>
+      <line x1="615" y1="240" x2="615" y2="270" stroke="#EF4444" stroke-width="1.5" stroke-dasharray="4,2"/>
+
+      <!-- Catalog & Governance -->
+      <rect x="30" y="350" width="1000" height="50" rx="8" fill="#F97316" opacity="0.9" filter="url(#shadowM)"/>
+      <text x="530" y="375" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Catalog & Governance: DataHub · Atlan · Collibra · Amundsen</text>
+      <text x="530" y="392" text-anchor="middle" fill="#ffe0cc" font-size="9">Data discovery, lineage, column-level lineage, PII tagging, access control</text>
+      <line x1="265" y1="320" x2="265" y2="350" stroke="#F97316" stroke-width="1.5" stroke-dasharray="4,2"/>
+      <line x1="440" y1="320" x2="440" y2="350" stroke="#F97316" stroke-width="1.5" stroke-dasharray="4,2"/>
+      <line x1="615" y1="320" x2="615" y2="350" stroke="#F97316" stroke-width="1.5" stroke-dasharray="4,2"/>
+
+      <!-- Legend -->
+      <rect x="30" y="430" width="300" height="100" rx="8" fill="#fff" stroke="#ccc"/>
+      <text x="180" y="455" text-anchor="middle" font-size="10" font-weight="700" fill="#333">Legend</text>
+      <rect x="50" y="465" width="14" height="14" rx="3" fill="#6B7280"/><text x="72" y="477" font-size="9" fill="#333">Sources</text>
+      <rect x="130" y="465" width="14" height="14" rx="3" fill="#EC4899"/><text x="152" y="477" font-size="9" fill="#333">Ingestion</text>
+      <rect x="210" y="465" width="14" height="14" rx="3" fill="#5DB85B"/><text x="232" y="477" font-size="9" fill="#333">Warehouse</text>
+      <rect x="50" y="485" width="14" height="14" rx="3" fill="#8B5CF6"/><text x="72" y="497" font-size="9" fill="#333">Transform</text>
+      <rect x="130" y="485" width="14" height="14" rx="3" fill="#F59E0B"/><text x="152" y="497" font-size="9" fill="#333">BI</text>
+      <rect x="210" y="485" width="14" height="14" rx="3" fill="#1ABC9C"/><text x="232" y="497" font-size="9" fill="#333">Reverse ETL</text>
+      <text x="550" y="560" text-anchor="middle" font-size="10" fill="#555" font-style="italic">Figure 3.1 — The canonical modern data architecture (2025)</text>
+    </svg>
+  </div>
+
+  <!-- 3.2 ETL vs ELT -->
+  <h3 class="ss">3.2 ETL vs ELT — The Great Shift</h3>
+  <div class="ct">
+    <p>Traditional ETL (Extract-Transform-Load) performed transformations outside the warehouse, often on dedicated servers. Modern ELT (Extract-Load-Transform) loads raw data first, then transforms inside the warehouse using its elastic compute power.</p>
+  </div>
+
+  <div class="ct">
+    <table class="tb">
+      <thead><tr><th>Aspect</th><th>ETL (Extract-Transform-Load)</th><th>ELT (Extract-Load-Transform)</th></tr></thead>
+      <tbody>
+        <tr><td>Transform location</td><td>On a separate ETL server (Informatica, Talend)</td><td>Inside the warehouse (SQL / dbt)</td></tr>
+        <tr><td>Scalability</td><td>Limited by ETL server capacity</td><td>Leverages warehouse's elastic compute (scales to petabytes)</td></tr>
+        <tr><td>Complexity</td><td>Complex pipeline code (Java/Python/visual flows)</td><td>SQL-based transformations (declarative, simple)</td></tr>
+        <tr><td>Latency</td><td>Higher (transform before load delays availability)</td><td>Lower (raw data available immediately, transform on read or scheduled)</td></tr>
+        <tr><td>Debugging</td><td>Harder (transform in black-box tool, limited lineage)</td><td>Easier (SQL in warehouse, dbt lineage, full visibility)</td></tr>
+        <tr><td>Modern standard</td><td>Legacy (pre-2018)</td><td>✅ Standard since ~2018, adopted by modern data stacks</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="co co-i">
+    <span class="cl">⚙️ Engineering Insight</span>
+    ELT works because cloud warehouses (Snowflake, BigQuery) separate storage from compute. You can store raw data cheaply in object storage (or internal formats) and only pay for compute when transforming. ETL servers become bottlenecks; ELT uses the warehouse’s massively parallel processing (MPP) engine.
+  </div>
+
+  <!-- 3.3 The dbt Revolution -->
+  <h3 class="ss">3.3 The dbt Revolution</h3>
+  <div class="ct">
+    <p><strong>dbt (data build tool)</strong> transformed data engineering by applying software engineering best practices to SQL transformations. It is not an ETL tool — it's a transformation tool that runs <strong>inside</strong> the warehouse.</p>
+    <ul>
+      <li><strong>Models as SQL:</strong> Each model is a SELECT statement that defines a table or view. dbt compiles and runs these SQL files.</li>
+      <li><strong>Dependency management:</strong> Use <code>{{ ref('model_name') }}</code> to define dependencies; dbt builds a DAG automatically.</li>
+      <li><strong>Testing:</strong> Built-in tests (unique, not_null, relationships) and custom SQL tests ensure data quality.</li>
+      <li><strong>Documentation:</strong> Generate auto-documentation from .yml files — data catalog with lineage.</li>
+      <li><strong>CI/CD:</strong> dbt integrates with Git; run dbt build in PRs to test changes before merging.</li>
+      <li><strong>Modularity & reuse:</strong> Macros (Jinja templates), packages (dbt Hub), and sources improve code reuse.</li>
+    </ul>
+  </div>
+
+  <!-- dbt Example -->
+  <div class="cbw">
+    <div class="cbh"><span>dbt model example — fct_orders.sql</span><span class="lb">SQL (Jinja)</span></div>
+    <pre class="cb">{{ config(materialized='table') }}
+
+WITH orders AS (
+    SELECT * FROM {{ ref('stg_stripe__payments') }}
+),
+customers AS (
+    SELECT * FROM {{ ref('dim_customers') }}
+)
+
+SELECT
+    {{ dbt_utils.generate_surrogate_key(['orders.payment_id']) }} AS order_key,
+    orders.payment_date AS order_date,
+    customers.customer_key,
+    orders.amount AS revenue,
+    orders.currency
+FROM orders
+LEFT JOIN customers ON orders.customer_id = customers.customer_id
+WHERE customers.is_current = TRUE</pre>
+  </div>
+
+  <div class="cbw">
+    <div class="cbh"><span>dbt test configuration (schema.yml)</span><span class="lb">YAML</span></div>
+    <pre class="cb">models:
+  - name: fct_orders
+    description: "Fact table for orders at line-item grain"
+    columns:
+      - name: order_key
+        tests:
+          - unique
+          - not_null
+      - name: customer_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_key
+      - name: revenue
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1000000</pre>
+  </div>
+
+  <div class="co co-n">
+    <span class="cl">🎯 Interview Tip</span>
+    "What is dbt and why is it revolutionary?" — dbt brings software engineering practices (version control, testing, modularity, CI/CD) to SQL analytics. It transforms ELT from ad-hoc scripts into a maintainable, auditable, collaborative workflow. It’s the "T" in ELT, but with rigor.
+  </div>
+
+  <!-- 3.4 The Lakehouse Shift -->
+  <h3 class="ss">3.4 The Lakehouse Shift — Unifying Data Lakes and Warehouses</h3>
+  <div class="ct">
+    <p>The <strong>lakehouse</strong> architecture combines the best of data lakes (low-cost object storage, open formats) and data warehouses (ACID transactions, schema enforcement, query performance).</p>
+    <p><strong>Open table formats</strong> (Apache Iceberg, Delta Lake, Apache Hudi) enable this unification. They add ACID, time travel, schema evolution, and efficient upserts/deletes to Parquet files stored on S3/GCS/ADLS.</p>
+    <p><strong>Benefits:</strong></p>
+    <ul>
+      <li>No vendor lock-in — your data is in open formats, readable by any engine (Spark, Trino, Snowflake, BigQuery, Flink).</li>
+      <li>Single copy of data for both SQL analytics and ML frameworks (Spark ML, TensorFlow, PyTorch).</li>
+      <li>Cost efficiency — object storage is ~5–10× cheaper than proprietary warehouse storage.</li>
+      <li>Decoupled compute — different engines can query the same data simultaneously.</li>
+    </ul>
+    <p><strong>Architecture mapping:</strong> The Medallion architecture (Bronze → Silver → Gold) is typically implemented on Iceberg/Delta tables. Bronze = raw ingested data, Silver = cleaned/conformed, Gold = aggregates/dimensional marts.</p>
+  </div>
+
+  <!-- Lakehouse SVG diagram -->
+  <div class="dc">
+    <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+      <rect width="900" height="300" fill="#F8F9FA" rx="12"/>
+      <text x="450" y="28" text-anchor="middle" font-size="14" font-weight="700">Lakehouse Architecture — Open Table Formats on Object Storage</text>
+
+      <!-- Object storage layer -->
+      <rect x="50" y="200" width="800" height="70" rx="8" fill="#E2E8F0" stroke="#94A3B8" stroke-width="1.5"/>
+      <text x="450" y="225" text-anchor="middle" font-size="12" font-weight="700">Object Storage (S3 / GCS / ADLS)</text>
+      <text x="450" y="245" text-anchor="middle" font-size="10">Parquet files + Iceberg/Delta metadata (ACID, time travel, schema evolution)</text>
+
+      <!-- Compute engines -->
+      <rect x="30" y="50" width="180" height="50" rx="8" fill="#3B82F6"/>
+      <text x="120" y="80" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">Snowflake</text>
+      <line x1="120" y1="100" x2="120" y2="200" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+      <rect x="230" y="50" width="180" height="50" rx="8" fill="#EF4444"/>
+      <text x="320" y="80" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">Databricks</text>
+      <line x1="320" y1="100" x2="320" y2="200" stroke="#EF4444" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+      <rect x="430" y="50" width="180" height="50" rx="8" fill="#F59E0B"/>
+      <text x="520" y="80" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">Trino / Presto</text>
+      <line x1="520" y1="100" x2="520" y2="200" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+      <rect x="630" y="50" width="180" height="50" rx="8" fill="#8B5CF6"/>
+      <text x="720" y="80" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">Spark / Flink</text>
+      <line x1="720" y1="100" x2="720" y2="200" stroke="#8B5CF6" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+      <text x="450" y="290" text-anchor="middle" font-size="10" fill="#555" font-style="italic">Figure 3.2 — Multiple engines, single storage layer. No data duplication.</text>
+    </svg>
+  </div>
+
+  <div class="cbw">
+    <div class="cbh"><span>Creating an Iceberg table in Spark</span><span class="lb">SQL / PySpark</span></div>
+    <pre class="cb">-- Spark SQL with Iceberg catalog
+CREATE TABLE catalog.db.orders (
+    order_id BIGINT,
+    customer_id BIGINT,
+    order_date DATE,
+    revenue DECIMAL(10,2)
+) USING iceberg
+PARTITIONED BY (order_date)
+TBLPROPERTIES ('write.format.default'='parquet');
+
+-- Time travel query (as of yesterday)
+SELECT * FROM catalog.db.orders VERSION AS OF '2025-03-31';</pre>
+  </div>
+
+  <div class="co co-i">
+    <span class="cl">⚙️ Engineering Insight</span>
+    In 2025, most new data platforms are built as lakehouses. Snowflake and BigQuery now natively read Iceberg tables stored in your own S3/GCS bucket — no data movement. Databricks’ Delta Lake is the default. The choice between Iceberg and Delta is now a strategic decision; both are mature and interoperable via UniForm.
+  </div>
+
+  <div class="co co-p">
+    <span class="cl">⚠️ Common Pitfall</span>
+    “Lakehouse = just Parquet files” — false. Without an open table format (Iceberg/Delta), you lose ACID, time travel, and schema evolution. Raw Parquet on S3 is a data lake, not a lakehouse. Always use a table format for production lakehouses.
+  </div>
+
+  <!-- Production Notes: Modern Stack in Practice -->
+  <h3 class="ss">3.5 Production Stack — Typical Toolchain</h3>
+  <div class="ct">
+    <table class="tb">
+      <thead><tr><th>Layer</th><th>Popular Tools (2025)</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Ingestion</td><td>Fivetran, Airbyte, Debezium, dlt</td><td>Managed connectors, CDC, schema drift handling</td></tr>
+        <tr><td>Warehouse / Lakehouse</td><td>Snowflake, BigQuery, Databricks, Redshift</td><td>Elastic compute, separation of storage/compute</td></tr>
+        <tr><td>Transformation</td><td>dbt, dbt Cloud, Coalesce</td><td>SQL-first, version-controlled, testable</td></tr>
+        <tr><td>Orchestration</td><td>Airflow, Dagster, Prefect, dbt Cloud jobs</td><td>DAG scheduling, retries, monitoring</td></tr>
+        <tr><td>Data Quality</td><td>dbt tests, Elementary, Monte Carlo, Great Expectations</td><td>Automated testing, anomaly detection</td></tr>
+        <tr><td>Semantic Layer</td><td>dbt MetricFlow, LookML, Cube</td><td>Metrics definitions, consistent KPIs</td></tr>
+        <tr><td>BI / Visualization</td><td>Looker, Tableau, Power BI, Superset</td><td>Self-service dashboards, embedded analytics</td></tr>
+        <tr><td>Reverse ETL</td><td>Census, Hightouch, Omnata</td><td>Sync warehouse data to Salesforce, HubSpot, Braze</td></tr>
+        <tr><td>Catalog & Governance</td><td>DataHub, Atlan, Collibra</td><td>Data discovery, lineage, access control</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="co co-n">
+    <span class="cl">📐 Modeling Rule</span>
+    The modern stack does not replace dimensional modeling — it enhances it. Still build star schemas (fct_*, dim_*) in your gold layer. Use dbt to manage transformations, tests, and documentation. Use Iceberg/Delta for the underlying storage. The best practices of Kimball remain relevant.
+  </div>
+
+  <div class="co co-n">
+    <span class="cl">🎯 Interview Tip</span>
+    “Walk me through a modern data pipeline from source to dashboard.” — Answer: (1) Source → ingestion tool (Fivetran) loads raw to Bronze tables. (2) dbt transforms Bronze → Silver (cleaning, dedup) → Gold (star schemas). (3) dbt tests run for quality. (4) Airflow orchestrates the entire DAG. (5) Looker queries Gold tables via semantic layer. (6) Reverse ETL sends aggregates back to Salesforce. (7) DataHub catalogs all assets with lineage. This shows end-to-end understanding.
+  </div>
+</div>
+</div>
+  <div style="text-align:center; margin: 48px 0; padding: 20px; border-top:2px solid #e2e8f0;">
+    <p>© Data Warehouse Deep‑Dive Guide — Complete Reference for Staff/Principal Engineers</p>
+    <p><strong>Note:</strong> This frame includes full Section 1. Sections 2–30 follow the same pattern and will be merged.</p>
+  </div>
+
+<script>
+/* Data modeling uses #secN IDs on .gc divs, not h2.st — custom scroll tracking */
+(function(){
+  var sections = document.querySelectorAll('[id^="sec"],[id^="app"]');
+  var links = document.querySelectorAll('#sidebar nav a');
+  var progressBar = document.getElementById('sb-progress-bar');
+  var sb = document.getElementById('sidebar');
+  var ticking = false;
+
+  function onScroll(){
+    if(ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){
+      var scrollY = window.scrollY;
+      var docH = document.documentElement.scrollHeight - window.innerHeight;
+      if(progressBar && docH > 0)
+        progressBar.style.width = Math.min(100, (scrollY / docH) * 100) + '%';
+      var current = '';
+      sections.forEach(function(s){
+        if(scrollY >= s.offsetTop - 140) current = s.id;
+      });
+      links.forEach(function(a){
+        a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+      });
+      var activeLink = sb.querySelector('nav a.active');
+      if(activeLink){
+        var linkTop = activeLink.offsetTop;
+        var linkBot = linkTop + activeLink.offsetHeight;
+        var visTop = sb.scrollTop + 90;
+        var visBot = sb.scrollTop + sb.clientHeight - 50;
+        if(linkTop < visTop) sb.scrollTop = linkTop - 90;
+        else if(linkBot > visBot) sb.scrollTop = linkBot - sb.clientHeight + 50;
+      }
+      ticking = false;
+    });
+  }
+  window.addEventListener('scroll', onScroll, {passive: true});
+  onScroll();
+  links.forEach(function(a){
+    a.addEventListener('click', function(){ sb.classList.remove('open'); });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Deep-Dive Engineering Guide</title>
+<link rel="stylesheet" href="../_shared/styles.css">
+<style>
+/* SQL-specific: PostgreSQL brand color + PDF-focused overrides */
+:root{--d:#336791;--ac:#336791;--ic:#0284c7;--pc:#ef4444;--nc:#16a34a}
+
+/* Cover — SQL uses different class names */
+.cover{background:linear-gradient(135deg,#0f0f23,#1a1a3e);min-height:100vh;height:100vh}
+.cover-content{position:relative;z-index:1;max-width:800px}
+.cover-badge{background:var(--d);border:none;padding:8px 20px;border-radius:20px;font-size:12pt;letter-spacing:1px}
+.cover h1{font-size:44pt;border:none;color:#fff;text-transform:uppercase;letter-spacing:2px;-webkit-text-fill-color:#fff;background:none}
+.cover .subtitle{font-size:20pt;color:#a0d8f0;margin-bottom:40px;font-weight:300;letter-spacing:1px}
+.meta-item{text-align:center}
+.meta-number{display:block;font-size:24pt;font-weight:bold;color:#F5A623;margin-bottom:5px}
+.meta-label{display:block;font-size:10pt;text-transform:uppercase;letter-spacing:1px;color:#a0d8f0}
+
+/* TOC — SQL uses unique structure */
+.toc{page-break-before:always;page-break-after:always;max-width:1100px;margin:0 auto;padding:40px 30px}
+.toc h1{text-align:center;margin-bottom:30pt;border:none;font-size:2.2em;color:var(--hd)}
+.toc-part{margin-bottom:25pt;page-break-inside:avoid}
+.toc-part-header{display:flex;align-items:center;margin-bottom:12pt;padding:10px 15px;background:linear-gradient(90deg,#0f0f23,#1a1a3e);border-radius:8px;color:#fff}
+.toc-part-badge{display:inline-block;background:var(--d);color:#fff;padding:5px 12px;border-radius:4px;font-size:10pt;font-weight:bold;margin-right:12px}
+.toc-part-title{font-size:14pt;font-weight:bold;color:#fff;flex-grow:1;background:none;padding:0;margin:0;border-radius:0;display:inline}
+.toc-entry{display:flex;align-items:center;margin-bottom:8pt;font-size:11pt;padding-left:25px}
+.toc-number{display:inline-block;width:40px;color:var(--d);font-weight:bold}
+.toc-title{flex-grow:1;color:#2C3E50}
+.toc-leader{flex-grow:1;border-bottom:1px dotted #ccc;margin:0 8pt;height:1pt}
+.toc-page{color:var(--d);font-weight:bold;min-width:40px;text-align:right}
+
+/* Part header */
+.ph{padding:30px 25px;margin:40px 0 25px 0}
+.ph-label{font-size:10pt;letter-spacing:2px;text-transform:uppercase;color:#a0d8f0;margin-bottom:8pt;font-weight:bold}
+.ph h1{font-size:28pt;border:none;color:#fff;margin:0;position:relative;z-index:1;text-transform:uppercase;letter-spacing:1px}
+
+/* Callouts — SQL uses ::before labels */
+.co .cl{display:none}
+.co-i::before{content:'Engineering Insight: ';font-weight:bold;color:#0284c7}
+.co-p::before{content:'Common Pitfall: ';font-weight:bold;color:#ef4444}
+.co-n::before{content:'Interview Tip: ';font-weight:bold;color:#16a34a}
+.co-d{background:#fef3c7;border-color:#f59e0b;color:#78350f}
+.co-d::before{content:'Engine Diff: ';font-weight:bold;color:#f59e0b}
+
+/* Code blocks — SQL uses .cb-lang */
+.cb-lang{display:inline-block;background:var(--d);color:#fff;padding:3px 8px;border-radius:3px;font-size:8pt;font-weight:bold}
+
+/* Key takeaway — dark gradient style */
+.kt{background:linear-gradient(135deg,#0f0f23,#1a1a3e);color:#fff;padding:15px 20px;border-radius:10px;border-left:5px solid var(--d)}
+.kt h4{color:#fff}
+.kt strong{color:#F5A623}
+
+/* Diagram caption */
+.dc-caption{font-size:9pt;color:#666;font-style:italic;margin-top:8pt;text-align:center}
+
+/* Utility */
+.break-before{page-break-before:always}
+.break-after{page-break-after:always}
+.no-break{page-break-inside:avoid}
+
+/* Print — SQL-specific page headers */
+@page{@top-left{content:"SQL Deep-Dive Guide";font-size:8pt;color:#999}@bottom-center{content:counter(page);font-size:8pt;color:#999}}
+@page:first{@top-left{content:none}@bottom-center{content:none}}
+</style>
+</head>
+<body>
+
+<button id="sb-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">&#9776;</button>
+<aside id="sidebar">
+  <div id="sb-progress"><div id="sb-progress-bar"></div></div>
+  <div class="sb-head">
+    <div class="sb-head-row">
+      <svg class="sb-head-icon" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#336791"/><stop offset="100%" stop-color="#5DB85B"/>
+        </linearGradient></defs>
+        <circle cx="14" cy="14" r="12" fill="url(#sg)"/>
+        <text x="14" y="19" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">S</text>
+      </svg>
+      <div>
+        <div class="sb-brand">SQL</div>
+        <div class="sb-title">Deep-Dive Guide</div>
+      </div>
+    </div>
+  </div>
+  <nav>
+    <div class="sb-part-label">Part I &mdash; Foundations</div>
+    <a href="#s1"><span class="sn">01</span>How SQL Engines Work</a>
+    <a href="#s2"><span class="sn">02</span>Logical Execution Order</a>
+  </nav>
+</aside>
+
+<!-- ========== COVER PAGE ========== -->
+<div class="cover">
+    <div class="cover-content">
+        <span class="cover-badge">ENGINEERING REFERENCE</span>
+        <h1>SQL Deep-Dive</h1>
+        <div class="subtitle">Complete Guide to Query Engines, Optimization, and Production Internals</div>
+        
+        <div class="cover-meta">
+            <div class="meta-item">
+                <span class="meta-number">30</span>
+                <span class="meta-label">Sections</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-number">7</span>
+                <span class="meta-label">Appendices</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-number">50+</span>
+                <span class="meta-label">Diagrams & Examples</span>
+            </div>
+        </div>
+
+        <p style="margin-top: 80px; font-size: 11pt; color: #a0d8f0;">
+            <strong>For Senior & Principal Data Engineers</strong><br>
+            PostgreSQL, MySQL, BigQuery, Snowflake, and Modern SQL Dialects
+        </p>
+    </div>
+</div>
+
+<!-- ========== TABLE OF CONTENTS ========== -->
+<div class="toc">
+    <h1>Table of Contents</h1>
+
+    <!-- PART I: FOUNDATIONS -->
+    <div class="toc-part">
+        <div class="toc-part-header">
+            <span class="toc-part-badge">PART I</span>
+            <span class="toc-part-title">FOUNDATIONS</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 1</span>
+            <span class="toc-title">How SQL Engines Work — From Text to Result Set</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">1</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 2</span>
+            <span class="toc-title">The SQL Logical Execution Order</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">5</span>
+        </div>
+    </div>
+
+    <!-- PART II: CORE SQL -->
+    <div class="toc-part">
+        <div class="toc-part-header">
+            <span class="toc-part-badge">PART II</span>
+            <span class="toc-part-title">CORE SQL</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 3</span>
+            <span class="toc-title">SELECT, FROM, WHERE — Filtering, Projection, Aliases</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">9</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 4</span>
+            <span class="toc-title">JOINs — INNER, LEFT, RIGHT, FULL, CROSS, LATERAL, Anti-Joins</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">13</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 5</span>
+            <span class="toc-title">Aggregation — GROUP BY, HAVING, GROUPING SETS, ROLLUP, CUBE</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">18</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 6</span>
+            <span class="toc-title">Subqueries — Scalar, Row, Table, Correlated, EXISTS, IN</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">22</span>
+        </div>
+    </div>
+
+    <!-- PART III: ADVANCED SQL -->
+    <div class="toc-part">
+        <div class="toc-part-header">
+            <span class="toc-part-badge">PART III</span>
+            <span class="toc-part-title">ADVANCED SQL</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 7</span>
+            <span class="toc-title">Common Table Expressions (CTEs) — Non-Recursive, Recursive</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">27</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 8</span>
+            <span class="toc-title">Window Functions — Ranking, Analytic, Frame Specification</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">31</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 9</span>
+            <span class="toc-title">Set Operations — UNION, INTERSECT, EXCEPT</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">37</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 10</span>
+            <span class="toc-title">CASE Expressions, COALESCE, NULLIF, Conditional Logic</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">40</span>
+        </div>
+    </div>
+
+    <!-- PART IV: DATA TYPES & FUNCTIONS -->
+    <div class="toc-part">
+        <div class="toc-part-header">
+            <span class="toc-part-badge">PART IV</span>
+            <span class="toc-part-title">DATA TYPES & FUNCTIONS</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 11</span>
+            <span class="toc-title">Data Types — Numeric, String, Temporal, JSON, Array</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">43</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 12</span>
+            <span class="toc-title">String, Date/Time, and Type Casting Functions</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">47</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 13</span>
+            <span class="toc-title">JSON and Array Operations</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">51</span>
+        </div>
+    </div>
+
+    <!-- PART V: DATA MANIPULATION -->
+    <div class="toc-part">
+        <div class="toc-part-header">
+            <span class="toc-part-badge">PART V</span>
+            <span class="toc-part-title">DATA MANIPULATION</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 14</span>
+            <span class="toc-title">INSERT, UPDATE, DELETE, MERGE (UPSERT)</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">54</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 15</span>
+            <span class="toc-title">RETURNING Clause, CTEs in DML, Bulk Operations</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">58</span>
+        </div>
+    </div>
+
+    <!-- PART VI: QUERY EXECUTION INTERNALS -->
+    <div class="toc-part">
+        <div class="toc-part-header">
+            <span class="toc-part-badge">PART VI</span>
+            <span class="toc-part-title">QUERY EXECUTION INTERNALS</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 16</span>
+            <span class="toc-title">Query Optimizer Internals — Cost-Based Optimization</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">61</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 17</span>
+            <span class="toc-title">Join Algorithms — Nested Loop, Hash, Sort-Merge</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">66</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 18</span>
+            <span class="toc-title">EXPLAIN / EXPLAIN ANALYZE — Reading Execution Plans</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">71</span>
+        </div>
+    </div>
+
+    <!-- PART VII: INDEXING -->
+    <div class="toc-part">
+        <div class="toc-part-header">
+            <span class="toc-part-badge">PART VII</span>
+            <span class="toc-part-title">INDEXING</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 19</span>
+            <span class="toc-title">B-Tree and B+Tree Indexes</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">77</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 20</span>
+            <span class="toc-title">Advanced Indexes — GIN, GiST, BRIN, Covering, Partial</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">82</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 21</span>
+            <span class="toc-title">Index Design Strategy — When and What to Index</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">87</span>
+        </div>
+    </div>
+
+    <!-- PART VIII: TRANSACTIONS -->
+    <div class="toc-part">
+        <div class="toc-part-header">
+            <span class="toc-part-badge">PART VIII</span>
+            <span class="toc-part-title">TRANSACTIONS & CONCURRENCY</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 22</span>
+            <span class="toc-title">ACID Properties and Isolation Levels</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">91</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 23</span>
+            <span class="toc-title">MVCC, WAL, Locking, Deadlock Detection</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">96</span>
+        </div>
+    </div>
+
+    <!-- PART IX: DATA MODELING -->
+    <div class="toc-part">
+        <div class="toc-part-header">
+            <span class="toc-part-badge">PART IX</span>
+            <span class="toc-part-title">DATA MODELING</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 24</span>
+            <span class="toc-title">Normalization (1NF–5NF) and Denormalization</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">101</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 25</span>
+            <span class="toc-title">Star Schema and Dimensional Modeling</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">105</span>
+        </div>
+    </div>
+
+    <!-- PART X: PERFORMANCE -->
+    <div class="toc-part">
+        <div class="toc-part-header">
+            <span class="toc-part-badge">PART X</span>
+            <span class="toc-part-title">PERFORMANCE & PRODUCTION</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 26</span>
+            <span class="toc-title">Query Performance Tuning</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">109</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 27</span>
+            <span class="toc-title">Table Partitioning — Range, List, Hash</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">113</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 28</span>
+            <span class="toc-title">SQL Anti-Patterns — The 20 Most Costly Mistakes</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">117</span>
+        </div>
+    </div>
+
+    <!-- PART XI: MODERN SQL -->
+    <div class="toc-part">
+        <div class="toc-part-header">
+            <span class="toc-part-badge">PART XI</span>
+            <span class="toc-part-title">MODERN SQL</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 29</span>
+            <span class="toc-title">Modern SQL Features — LATERAL, FILTER, QUALIFY</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">124</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">§ 30</span>
+            <span class="toc-title">SQL for Analytics Engines — BigQuery, Snowflake, DuckDB</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">129</span>
+        </div>
+    </div>
+
+    <!-- APPENDICES -->
+    <div class="toc-part">
+        <div class="toc-part-header">
+            <span class="toc-part-badge">APP</span>
+            <span class="toc-part-title">APPENDICES — REFERENCE MATERIALS</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">A</span>
+            <span class="toc-title">SQL Logical Execution Order — Visual Reference</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">135</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">B</span>
+            <span class="toc-title">Complete Query Lifecycle — Connection to Result Set</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">138</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">C</span>
+            <span class="toc-title">EXPLAIN Plan Cheat Sheet</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">141</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">D</span>
+            <span class="toc-title">SQL Cookbook — 50 Production Query Patterns</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">144</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">E</span>
+            <span class="toc-title">Index Selection Decision Tree</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">162</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">F</span>
+            <span class="toc-title">Isolation Level Comparison Matrix</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">165</span>
+        </div>
+        <div class="toc-entry">
+            <span class="toc-number">G</span>
+            <span class="toc-title">Engine-Specific SQL Syntax Differences</span>
+            <span class="toc-leader"></span>
+            <span class="toc-page">168</span>
+        </div>
+    </div>
+</div>
+
+<!-- ========== MERGE MARKER: INSERT BLOCK 1 (SECTIONS 1-2) BELOW THIS LINE ========== -->
+<!-- BLOCK 0 COMPLETE: CSS + Cover + TOC (~700 lines). Ready to merge with Block 1. -->
+
+
+ 
+<div class="gc">
+ 
+<!-- ========== PART I — FOUNDATIONS ========== -->
+<div class="ph">
+    <div class="ph-label">PART I</div>
+    <h1>Foundations</h1>
+</div>
+ 
+<!-- ========== SECTION 1 — How SQL Engines Work ========== -->
+<div class="break-before"></div>
+<div class="sb">
+    <h2 class="st">Section 1: How SQL Engines Work — From Text to Result Set</h2>
+    
+    <h3 class="ss">1.1 The SQL Query Lifecycle</h3>
+    <p class="ct">
+        Every SQL query passes through a <strong>well-defined eight-stage pipeline</strong> from raw text to result set. Understanding this pipeline is the foundation for debugging slow queries, understanding optimizer decisions, and writing efficient SQL. Let's walk through each stage:
+    </p>
+ 
+    <div class="dc">
+        <svg viewBox="0 0 1200 400" xmlns="http://www.w3.org/2000/svg" width="100%">
+            <defs>
+                <style>
+                    .svg-box { fill: #f8f9fa; stroke: #ccc; stroke-width: 1; }
+                    .svg-text { font-family: "Segoe UI", sans-serif; font-size: 13px; text-anchor: middle; }
+                    .svg-arrow { stroke: #555; stroke-width: 2; fill: none; }
+                    .svg-label { font-family: "Segoe UI", sans-serif; font-size: 11px; fill: #555; text-anchor: middle; }
+                    .parser { fill: #336791; }
+                    .logical { fill: #5DB85B; }
+                    .physical { fill: #F5A623; }
+                    .execute { fill: #F5A623; }
+                    .result { fill: #1ABC9C; }
+                </style>
+                <marker id="arrow-svg" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L0,6 L9,3 z" fill="#555"></path>
+                </marker>
+            </defs>
+ 
+            <!-- Stage 1: Parse -->
+            <rect x="20" y="100" width="120" height="80" rx="8" class="svg-box parser"></rect>
+            <text x="80" y="135" class="svg-text" fill="#fff"><tspan font-weight="bold">1. Parse</tspan></text>
+            <text x="80" y="155" class="svg-text" fill="#fff" font-size="11"><tspan>(Lexer + Parser)</tspan></text>
+            <text x="80" y="175" class="svg-label" fill="#fff">Tokens → AST</text>
+ 
+            <!-- Arrow 1 -->
+            <path d="M 140,140 L 170,140" class="svg-arrow" marker-end="url(#arrow-svg)"></path>
+ 
+            <!-- Stage 2: Analyze -->
+            <rect x="170" y="100" width="120" height="80" rx="8" class="svg-box parser"></rect>
+            <text x="230" y="135" class="svg-text" fill="#fff"><tspan font-weight="bold">2. Analyze</tspan></text>
+            <text x="230" y="155" class="svg-text" fill="#fff" font-size="11"><tspan>(Semantic Check)</tspan></text>
+            <text x="230" y="175" class="svg-label" fill="#fff">Resolve Names</text>
+ 
+            <!-- Arrow 2 -->
+            <path d="M 290,140 L 320,140" class="svg-arrow" marker-end="url(#arrow-svg)"></path>
+ 
+            <!-- Stage 3: Logical Plan -->
+            <rect x="320" y="100" width="120" height="80" rx="8" class="svg-box logical"></rect>
+            <text x="380" y="135" class="svg-text" fill="#fff"><tspan font-weight="bold">3. Logical</tspan></text>
+            <text x="380" y="155" class="svg-text" fill="#fff" font-size="11"><tspan>Plan</tspan></text>
+            <text x="380" y="175" class="svg-label" fill="#fff">Relational Algebra</text>
+ 
+            <!-- Arrow 3 -->
+            <path d="M 440,140 L 470,140" class="svg-arrow" marker-end="url(#arrow-svg)"></path>
+ 
+            <!-- Stage 4: Optimize -->
+            <rect x="470" y="100" width="120" height="80" rx="8" class="svg-box logical"></rect>
+            <text x="530" y="135" class="svg-text" fill="#fff"><tspan font-weight="bold">4. Optimize</tspan></text>
+            <text x="530" y="155" class="svg-text" fill="#fff" font-size="11"><tspan>(CBO)</tspan></text>
+            <text x="530" y="175" class="svg-label" fill="#fff">Rewrite Plan</text>
+ 
+            <!-- Arrow 4 -->
+            <path d="M 590,140 L 620,140" class="svg-arrow" marker-end="url(#arrow-svg)"></path>
+ 
+            <!-- Stage 5: Physical Plan -->
+            <rect x="620" y="100" width="120" height="80" rx="8" class="svg-box physical"></rect>
+            <text x="680" y="135" class="svg-text" fill="#fff"><tspan font-weight="bold">5. Physical</tspan></text>
+            <text x="680" y="155" class="svg-text" fill="#fff" font-size="11"><tspan>Plan</tspan></text>
+            <text x="680" y="175" class="svg-label" fill="#fff">Pick Algorithms</text>
+ 
+            <!-- Arrow 5 -->
+            <path d="M 740,140 L 770,140" class="svg-arrow" marker-end="url(#arrow-svg)"></path>
+ 
+            <!-- Stage 6: Execute -->
+            <rect x="770" y="100" width="120" height="80" rx="8" class="svg-box execute"></rect>
+            <text x="830" y="135" class="svg-text" fill="#fff"><tspan font-weight="bold">6. Execute</tspan></text>
+            <text x="830" y="155" class="svg-text" fill="#fff" font-size="11"><tspan>(Iterator)</tspan></text>
+            <text x="830" y="175" class="svg-label" fill="#fff">Run Operators</text>
+ 
+            <!-- Arrow 6 -->
+            <path d="M 890,140 L 920,140" class="svg-arrow" marker-end="url(#arrow-svg)"></path>
+ 
+            <!-- Stage 7: Result -->
+            <rect x="920" y="100" width="120" height="80" rx="8" class="svg-box result"></rect>
+            <text x="980" y="135" class="svg-text" fill="#fff"><tspan font-weight="bold">7. Result</tspan></text>
+            <text x="980" y="155" class="svg-text" fill="#fff" font-size="11"><tspan>Set</tspan></text>
+            <text x="980" y="175" class="svg-label" fill="#fff">Return Rows</text>
+ 
+            <!-- Timing annotations -->
+            <text x="80" y="35" class="svg-label"><tspan font-weight="bold">Parse Time</tspan></text>
+            <text x="80" y="50" class="svg-label">&lt; 1ms</text>
+ 
+            <text x="380" y="35" class="svg-label"><tspan font-weight="bold">Optimization Time</tspan></text>
+            <text x="380" y="50" class="svg-label">1–50ms</text>
+ 
+            <text x="830" y="35" class="svg-label"><tspan font-weight="bold">Execution Time</tspan></text>
+            <text x="830" y="50" class="svg-label">Variable</text>
+ 
+            <!-- Legend -->
+            <rect x="20" y="280" width="15" height="15" fill="#336791" rx="3"></rect>
+            <text x="40" y="292" class="svg-label" text-anchor="start">Parser Frontend</text>
+ 
+            <rect x="220" y="280" width="15" height="15" fill="#5DB85B" rx="3"></rect>
+            <text x="240" y="292" class="svg-label" text-anchor="start">Logical Planning</text>
+ 
+            <rect x="420" y="280" width="15" height="15" fill="#F5A623" rx="3"></rect>
+            <text x="440" y="292" class="svg-label" text-anchor="start">Physical Execution</text>
+ 
+            <rect x="700" y="280" width="15" height="15" fill="#1ABC9C" rx="3"></rect>
+            <text x="720" y="292" class="svg-label" text-anchor="start">Result Set Output</text>
+        </svg>
+        <div class="dc-caption">Figure 1.1 — The eight stages every SQL query passes through, from text to result set. Average timing: parse &lt; 1ms, optimize 1–50ms, execute variable.</div>
+    </div>
+ 
+    <h3 class="ss">1.2 Stage 1 — Parsing: Text to Tokens to AST</h3>
+    <p class="ct">
+        The parser is the first line of defense. It breaks raw SQL text into tokens and validates grammar syntax.
+    </p>
+ 
+    <div class="cbw">
+        <div class="cbh">
+            <span>Lexer Output Example</span>
+            <span class="cb-lang">TOKENS</span>
+        </div>
+        <div class="cb"><span class="cm">-- Input SQL text:</span>
+<span class="kw">SELECT</span> u.name, <span class="kw">COUNT</span>(*) <span class="kw">FROM</span> users u <span class="kw">WHERE</span> age > <span class="nb">25</span>;
+ 
+<span class="cm">-- Lexer breaks it into tokens:</span>
+[KEYWORD(SELECT), IDENTIFIER(u), DOT, IDENTIFIER(name), COMMA, KEYWORD(COUNT), 
+ LPAREN, STAR, RPAREN, KEYWORD(FROM), IDENTIFIER(users), IDENTIFIER(u), 
+ KEYWORD(WHERE), IDENTIFIER(age), GT, NUMBER(25), SEMICOLON]
+ 
+<span class="cm">-- Parser builds Abstract Syntax Tree (AST) from tokens:</span>
+SelectStatement {
+  projection: [ColumnRef(u.name), FunctionCall(COUNT(*))],
+  from: TableRef(users, alias=u),
+  where: BinaryOp(ColumnRef(age), GreaterThan, Literal(25))
+}</div>
+    </div>
+ 
+    <div class="co co-i">
+        At this stage, SQL is validated for <strong>syntax only</strong>. The parser doesn't know if table <code>users</code> exists or if column <code>age</code> is an integer. It just validates grammar rules.
+    </div>
+ 
+    <h3 class="ss">1.3 Stage 2 — Semantic Analysis: Name and Type Resolution</h3>
+    <p class="ct">
+        The analyzer ("catalog checker") walks the AST and binds symbolic names to actual database objects. It checks:
+    </p>
+    <ul>
+        <li><strong>Table existence:</strong> does <code>users</code> exist in the schema?</li>
+        <li><strong>Column existence:</strong> does table <code>users</code> have a column named <code>age</code>?</li>
+        <li><strong>Type compatibility:</strong> is <code>age > 25</code> a valid comparison? (age must be numeric)</li>
+        <li><strong>Ambiguity resolution:</strong> if both <code>users</code> and <code>employees</code> have an <code>id</code> column, which does <code>SELECT id</code> refer to?</li>
+        <li><strong>Access control:</strong> does the current role have SELECT permission on <code>users</code>?</li>
+    </ul>
+ 
+    <div class="cbw">
+        <div class="cbh">
+            <span>Semantic Analysis Errors</span>
+            <span class="cb-lang">SQL</span>
+        </div>
+        <div class="cb"><span class="cm">-- Table doesn't exist</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> nonexistent_table;
+<span class="cm">-- ERROR: relation "nonexistent_table" does not exist</span>
+ 
+<span class="cm">-- Column doesn't exist</span>
+<span class="kw">SELECT</span> age, salary <span class="kw">FROM</span> users;
+<span class="cm">-- ERROR: column "salary" does not exist in table "users"</span>
+ 
+<span class="cm">-- Type mismatch</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> users <span class="kw">WHERE</span> age > <span class="st">'hello'</span>;
+<span class="cm">-- ERROR: operator does not exist: integer > text</span>
+ 
+<span class="cm">-- Ambiguous column reference</span>
+<span class="kw">SELECT</span> id <span class="kw">FROM</span> users <span class="kw">JOIN</span> orders <span class="kw">ON</span> users.id = orders.user_id;
+<span class="cm">-- ERROR: column reference "id" is ambiguous</span></div>
+    </div>
+ 
+    <h3 class="ss">1.4 Stage 3 — Logical Planning: Relational Algebra</h3>
+    <p class="ct">
+        The logical planner converts the resolved AST into a <strong>logical plan</strong> — a tree of relational algebra operators. The logical plan is <strong>declarative</strong> (says WHAT to compute, not HOW).
+    </p>
+ 
+    <div class="cbw">
+        <div class="cbh">
+            <span>Logical Plan Example</span>
+            <span class="cb-lang">ALGEBRA</span>
+        </div>
+        <div class="cb"><span class="cm">-- SQL:</span>
+<span class="kw">SELECT</span> country, <span class="kw">SUM</span>(revenue)
+<span class="kw">FROM</span> orders
+<span class="kw">WHERE</span> status = <span class="st">'completed'</span>
+<span class="kw">GROUP BY</span> country;
+ 
+<span class="cm">-- Logical Plan (relational algebra):</span>
+Aggregate {
+  groupBy: [country],
+  aggregates: [SUM(revenue)]
+} ←
+Filter {
+  condition: status = <span class="st">'completed'</span>
+} ←
+TableScan {
+  table: orders
+}</div>
+    </div>
+ 
+    <p class="ct">
+        Key relational operators:
+    </p>
+    <table class="tb">
+        <thead>
+            <tr>
+                <th>Operator</th>
+                <th>Symbol</th>
+                <th>Meaning</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Scan</strong></td>
+                <td>σ</td>
+                <td>Read rows from a table</td>
+            </tr>
+            <tr>
+                <td><strong>Filter / Selection</strong></td>
+                <td>π</td>
+                <td>Apply WHERE condition (remove non-matching rows)</td>
+            </tr>
+            <tr>
+                <td><strong>Project</strong></td>
+                <td>⊓</td>
+                <td>Select specific columns</td>
+            </tr>
+            <tr>
+                <td><strong>Join</strong></td>
+                <td>⋈</td>
+                <td>Combine rows from two tables</td>
+            </tr>
+            <tr>
+                <td><strong>Aggregate</strong></td>
+                <td>γ</td>
+                <td>GROUP BY with aggregation functions</td>
+            </tr>
+            <tr>
+                <td><strong>Sort</strong></td>
+                <td>τ</td>
+                <td>ORDER BY</td>
+            </tr>
+            <tr>
+                <td><strong>Limit</strong></td>
+                <td>⤓</td>
+                <td>LIMIT / OFFSET</td>
+            </tr>
+        </tbody>
+    </table>
+ 
+    <div class="co co-n">
+        The logical plan has <strong>no notion of indexes, memory limitations, or network latency</strong>. It's pure logic. The optimizer transforms this into an efficient equivalent logical plan, and then the physical planner chooses concrete algorithms.
+    </div>
+ 
+    <h3 class="ss">1.5 Stage 4 — Optimization: Cost-Based Optimization (CBO)</h3>
+    <p class="ct">
+        The <strong>most complex and important stage</strong>. The optimizer takes the logical plan and transforms it into an equivalent but much cheaper plan. Key optimizations:
+    </p>
+ 
+    <table class="tb">
+        <thead>
+            <tr>
+                <th>Optimization</th>
+                <th>Technique</th>
+                <th>Benefit</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Predicate Pushdown</strong></td>
+                <td>Move WHERE filters closer to table scans</td>
+                <td>Reduce rows early, less data flowing through pipeline</td>
+            </tr>
+            <tr>
+                <td><strong>Projection Pushdown</strong></td>
+                <td>Only read columns needed by query</td>
+                <td>Smaller row size, fewer I/O pages</td>
+            </tr>
+            <tr>
+                <td><strong>Join Reordering</strong></td>
+                <td>Choose join order that minimizes intermediate result size</td>
+                <td>Join smaller results first, exponential speedup</td>
+            </tr>
+            <tr>
+                <td><strong>Subquery Decorrelation</strong></td>
+                <td>Convert correlated subqueries to joins</td>
+                <td>Avoid re-executing subquery per row (N+1 anti-pattern)</td>
+            </tr>
+            <tr>
+                <td><strong>Index Selection</strong></td>
+                <td>Choose which index (if any) to use</td>
+                <td>Index scan O(log N) vs seq scan O(N)</td>
+            </tr>
+            <tr>
+                <td><strong>CTE Inlining / Materialization</strong></td>
+                <td>Decide whether to inline CTE or materialize it</td>
+                <td>Avoid redundant computation or unnecessary materialization</td>
+            </tr>
+        </tbody>
+    </table>
+ 
+    <p class="ct">
+        The optimizer uses <strong>statistics</strong> to estimate costs:
+    </p>
+    <ul>
+        <li><strong>Row count:</strong> how many rows in the table?</li>
+        <li><strong>Distinct values:</strong> how many unique values in a column?</li>
+        <li><strong>Histogram:</strong> distribution of values across buckets</li>
+        <li><strong>Null fraction:</strong> what percentage of values are NULL?</li>
+        <li><strong>Correlation:</strong> are column values correlated?</li>
+    </ul>
+ 
+    <div class="co co-p">
+        <strong>Stale statistics are the #1 cause of bad query plans.</strong> If the optimizer thinks a table has 1000 rows when it actually has 10 million, it will make terrible decisions (index scan instead of seq scan, wrong join order, etc.). Always run <code>ANALYZE</code> regularly.
+    </div>
+ 
+    <h3 class="ss">1.6 Stage 5 — Physical Planning: Choose Algorithms</h3>
+    <p class="ct">
+        The physical planner takes the optimized logical plan and instantiates it with concrete algorithms:
+    </p>
+ 
+    <div class="cbw">
+        <div class="cbh">
+            <span>Logical → Physical Plan</span>
+            <span class="cb-lang">TRANSFORM</span>
+        </div>
+        <div class="cb"><span class="cm">-- LOGICAL PLAN</span>
+Aggregate { groupBy: [country], SUM(revenue) }
+  ↑
+Filter { status = 'completed' }
+  ↑
+TableScan { orders }
+ 
+<span class="cm">-- PHYSICAL PLAN (concrete algorithms chosen)</span>
+HashAggregate { groupBy: [country], SUM(revenue) }  <span class="cm">-- Use hash table for grouping</span>
+  ↑
+Filter { status = 'completed' }
+  ↑
+IndexScan { orders, idx_status }  <span class="cm">-- Use index on status column</span></div>
+    </div>
+ 
+    <p class="ct">
+        Each physical operator has a <strong>cost estimate</strong> based on I/O, CPU, and memory:
+    </p>
+    <ul>
+        <li><strong>SeqScan / IndexScan:</strong> I/O cost to read table pages</li>
+        <li><strong>HashJoin / MergeJoin:</strong> CPU cost for comparing/matching rows</li>
+        <li><strong>Sort:</strong> CPU cost and potential disk I/O if sort spills</li>
+        <li><strong>HashAggregate:</strong> memory usage and CPU cost for hash table operations</li>
+    </ul>
+ 
+    <h3 class="ss">1.7 Stage 6 — Execution: The Iterator Model</h3>
+    <p class="ct">
+        The executor runs the physical plan using the <strong>Volcano/Iterator model</strong>. Each operator is an iterator with three methods:
+    </p>
+ 
+    <table class="tb">
+        <thead>
+            <tr>
+                <th>Method</th>
+                <th>Purpose</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>open()</code></td>
+                <td>Initialize the operator (allocate buffers, build hash tables, etc.)</td>
+            </tr>
+            <tr>
+                <td><code>next()</code></td>
+                <td>Return the next row (or batch in vectorized mode)</td>
+            </tr>
+            <tr>
+                <td><code>close()</code></td>
+                <td>Clean up resources</td>
+            </tr>
+        </tbody>
+    </table>
+ 
+    <p class="ct">
+        The execution is <strong>pull-based</strong>: the top operator (e.g., Limit) requests the next row from its child, which requests from its child, etc. This creates a pipeline that minimizes memory usage and can be pipelined efficiently.
+    </p>
+ 
+    <div class="cbw">
+        <div class="cbh">
+            <span>Iterator Model Pseudocode</span>
+            <span class="cb-lang">PSEUDOCODE</span>
+        </div>
+        <div class="cb"><span class="kw">class</span> <span class="fc">Limit</span> {
+  <span class="fc">open</span>() { count = 0; child.open(); }
+  <span class="fc">next</span>() {
+    <span class="kw">if</span> (count >= limit) <span class="kw">return</span> END_OF_STREAM;
+    row = child.next();
+    <span class="kw">if</span> (row != END_OF_STREAM) count++;
+    <span class="kw">return</span> row;
+  }
+  <span class="fc">close</span>() { child.close(); }
+}
+ 
+<span class="kw">class</span> <span class="fc">Filter</span> {
+  <span class="fc">next</span>() {
+    <span class="kw">while</span> (<span class="kw">true</span>) {
+      row = child.next();
+      <span class="kw">if</span> (row == END_OF_STREAM) <span class="kw">return</span> END_OF_STREAM;
+      <span class="kw">if</span> (evaluate_condition(row)) <span class="kw">return</span> row;
+    }
+  }
+}</div>
+    </div>
+ 
+    <div class="co co-i">
+        Modern databases like PostgreSQL 14+ and DuckDB use <strong>vectorized execution</strong> instead of the pure iterator model. Instead of pulling one row at a time, operators process vectors (batches of ~1000 rows) at once. This improves CPU cache efficiency and enables SIMD optimizations, resulting in 2–10x speedup for analytic queries.
+    </div>
+ 
+    <h3 class="ss">1.8 Key Takeaway — The Query Lifecycle</h3>
+    <div class="kt">
+        <strong>Every SQL query goes through 8 stages:</strong> Parse (syntax check) → Analyze (name/type resolution) → Logical Plan (relational algebra) → Optimize (cost-based rewrites) → Physical Plan (choose algorithms) → Execute (iterator pipeline) → Materialize (create result set) → Deliver to client. The <strong>optimizer stage is where 90% of performance differences come from</strong>. Stale statistics → bad cardinality estimates → wrong plan choice → slow query.
+    </div>
+</div>
+ 
+<!-- ========== SECTION 2 — The SQL Logical Execution Order ========== -->
+<div class="break-before"></div>
+<div class="sb">
+    <h2 class="st">Section 2: The SQL Logical Execution Order — FROM → WHERE → GROUP BY → SELECT → ORDER BY → LIMIT</h2>
+ 
+    <h3 class="ss">2.1 Written Order vs. Execution Order</h3>
+    <p class="ct">
+        <strong>This is the #1 source of confusion for SQL learners.</strong> The order you write clauses in SQL is NOT the order the engine executes them. You write SELECT first, but it executes LAST (before ORDER BY and LIMIT, anyway).
+    </p>
+ 
+    <div class="dc">
+        <svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg" width="100%">
+            <defs>
+                <style>
+                    .written-box { fill: #336791; }
+                    .exec-box { fill: #5db85b; }
+                    .step-text { font-family: "Segoe UI", sans-serif; font-size: 13px; fill: #fff; font-weight: bold; text-anchor: middle; }
+                    .clause-label { font-family: "Segoe UI", sans-serif; font-size: 10px; fill: #fff; text-anchor: middle; }
+                    .arrow { stroke: #333; stroke-width: 2; fill: none; }
+                </style>
+                <marker id="arr1" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                    <path d="M0,0 L0,6 L9,3 z" fill="#333"></path>
+                </marker>
+            </defs>
+ 
+            <!-- Left column: Written Order -->
+            <text x="100" y="30" style="font-size: 16px; font-weight: bold; text-anchor: middle; fill: #333">Written Order</text>
+ 
+            <rect x="30" y="60" width="140" height="50" rx="6" class="written-box"></rect>
+            <text x="100" y="85" class="step-text">1</text>
+            <text x="100" y="105" class="clause-label">SELECT</text>
+ 
+            <rect x="30" y="130" width="140" height="50" rx="6" class="written-box"></rect>
+            <text x="100" y="155" class="step-text">2</text>
+            <text x="100" y="175" class="clause-label">FROM</text>
+ 
+            <rect x="30" y="200" width="140" height="50" rx="6" class="written-box"></rect>
+            <text x="100" y="225" class="step-text">3</text>
+            <text x="100" y="245" class="clause-label">WHERE</text>
+ 
+            <rect x="30" y="270" width="140" height="50" rx="6" class="written-box"></rect>
+            <text x="100" y="295" class="step-text">4</text>
+            <text x="100" y="315" class="clause-label">GROUP BY</text>
+ 
+            <rect x="30" y="340" width="140" height="50" rx="6" class="written-box"></rect>
+            <text x="100" y="365" class="step-text">5</text>
+            <text x="100" y="385" class="clause-label">ORDER BY</text>
+ 
+            <rect x="30" y="410" width="140" height="50" rx="6" class="written-box"></rect>
+            <text x="100" y="435" class="step-text">6</text>
+            <text x="100" y="455" class="clause-label">LIMIT</text>
+ 
+            <!-- Right column: Execution Order -->
+            <text x="800" y="30" style="font-size: 16px; font-weight: bold; text-anchor: middle; fill: #333">Execution Order</text>
+ 
+            <rect x="730" y="60" width="140" height="50" rx="6" class="exec-box"></rect>
+            <text x="800" y="85" class="step-text">1</text>
+            <text x="800" y="105" class="clause-label">FROM / JOIN</text>
+ 
+            <rect x="730" y="130" width="140" height="50" rx="6" class="exec-box"></rect>
+            <text x="800" y="155" class="step-text">2</text>
+            <text x="800" y="175" class="clause-label">WHERE</text>
+ 
+            <rect x="730" y="200" width="140" height="50" rx="6" class="exec-box"></rect>
+            <text x="800" y="225" class="step-text">3</text>
+            <text x="800" y="245" class="clause-label">GROUP BY</text>
+ 
+            <rect x="730" y="270" width="140" height="50" rx="6" class="exec-box"></rect>
+            <text x="800" y="295" class="step-text">4</text>
+            <text x="800" y="315" class="clause-label">HAVING</text>
+ 
+            <rect x="730" y="340" width="140" height="50" rx="6" class="exec-box"></rect>
+            <text x="800" y="365" class="step-text">5</text>
+            <text x="800" y="385" class="clause-label">SELECT</text>
+ 
+            <rect x="730" y="410" width="140" height="50" rx="6" class="exec-box"></rect>
+            <text x="800" y="435" class="step-text">6</text>
+            <text x="800" y="455" class="clause-label">ORDER BY</text>
+ 
+            <rect x="730" y="480" width="140" height="40" rx="6" class="exec-box"></rect>
+            <text x="800" y="510" class="step-text">7</text>
+            <text x="800" y="525" class="clause-label">LIMIT</text>
+ 
+            <!-- Highlight the mismatch -->
+            <rect x="20" y="50" width="160" height="70" fill="none" stroke="#ff6b6b" stroke-width="3" stroke-dasharray="5,5" rx="6"></rect>
+            <rect x="720" y="50" width="160" height="70" fill="none" stroke="#ff6b6b" stroke-width="3" stroke-dasharray="5,5" rx="6"></rect>
+            <path d="M 200,85 L 730,85" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="5,5"></path>
+            <text x="465" y="95" style="font-size: 12px; fill: #ff6b6b; text-anchor: middle; font-weight: bold;">SELECT is written first, executed 5th!</text>
+        </svg>
+        <div class="dc-caption">Figure 2.1 — Written order vs. execution order. The mismatch causes aliases-in-WHERE errors and other confusion.</div>
+    </div>
+ 
+    <h3 class="ss">2.2 The Correct Execution Order with Examples</h3>
+    <p class="ct">
+        Let's walk through each step with a concrete example:
+    </p>
+ 
+    <div class="cbw">
+        <div class="cbh">
+            <span>Example Query</span>
+            <span class="cb-lang">SQL</span>
+        </div>
+        <div class="cb"><span class="kw">SELECT</span> country, <span class="kw">SUM</span>(revenue) <span class="kw">AS</span> total_revenue
+<span class="kw">FROM</span> orders
+<span class="kw">WHERE</span> status = <span class="st">'completed'</span>
+<span class="kw">GROUP BY</span> country
+<span class="kw">HAVING</span> <span class="kw">SUM</span>(revenue) > <span class="nb">10000</span>
+<span class="kw">ORDER BY</span> total_revenue <span class="kw">DESC</span>
+<span class="kw">LIMIT</span> <span class="nb">10</span>;</div>
+    </div>
+ 
+    <p class="ct"><strong>Step 1: FROM / JOIN</strong></p>
+    <p class="ct">
+        First, the engine determines the <strong>source table(s)</strong>. In this case, it's the <code>orders</code> table. If there were JOINs, both tables would be combined here according to the JOIN conditions.
+    </p>
+    <ul>
+        <li>Input: the <code>orders</code> table</li>
+        <li>Output: ~1 million rows (imagine)</li>
+    </ul>
+ 
+    <p class="ct"><strong>Step 2: WHERE</strong></p>
+    <p class="ct">
+        Apply row-level filters. Only rows matching the condition are kept.
+    </p>
+    <ul>
+        <li>Input: 1 million rows</li>
+        <li>Filter: <code>status = 'completed'</code></li>
+        <li>Output: 500,000 rows (50% of orders are completed)</li>
+    </ul>
+ 
+    <p class="ct"><strong>Step 3: GROUP BY</strong></p>
+    <p class="ct">
+        Group the filtered rows by the specified column(s). All rows with the same value in the GROUP BY columns are collected into a group.
+    </p>
+    <ul>
+        <li>Input: 500,000 rows</li>
+        <li>Group by: <code>country</code> (say 150 unique countries)</li>
+        <li>Output: 150 groups (one row per country)</li>
+    </ul>
+ 
+    <p class="ct"><strong>Step 4: HAVING</strong></p>
+    <p class="ct">
+        Filter groups (not individual rows). Only groups matching the condition are kept.
+    </p>
+    <ul>
+        <li>Input: 150 groups</li>
+        <li>Filter: <code>SUM(revenue) > 10000</code> (only high-revenue countries)</li>
+        <li>Output: 30 groups</li>
+    </ul>
+ 
+    <p class="ct"><strong>Step 5: SELECT</strong></p>
+    <p class="ct">
+        Compute the expressions in SELECT (projections and aggregation results). <strong>At this point, column aliases become available.</strong>
+    </p>
+    <ul>
+        <li>Input: 30 groups</li>
+        <li>Compute: <code>country</code> (just pass through) and <code>SUM(revenue) AS total_revenue</code></li>
+        <li>Output: 30 rows with two columns: <code>country, total_revenue</code></li>
+    </ul>
+ 
+    <p class="ct"><strong>Step 6: ORDER BY</strong></p>
+    <p class="ct">
+        Sort the result set. <strong>Now column aliases ARE available.</strong> You can reference <code>total_revenue</code> here.
+    </p>
+    <ul>
+        <li>Input: 30 rows (unordered)</li>
+        <li>Sort by: <code>total_revenue DESC</code></li>
+        <li>Output: 30 rows (sorted descending by revenue)</li>
+    </ul>
+ 
+    <p class="ct"><strong>Step 7: LIMIT</strong></p>
+    <p class="ct">
+        Truncate the result set to the specified number of rows.
+    </p>
+    <ul>
+        <li>Input: 30 rows</li>
+        <li>Limit: 10 rows</li>
+        <li>Output: 10 rows</li>
+    </ul>
+ 
+    <h3 class="ss">2.3 Why This Matters: Aliases in WHERE vs. ORDER BY</h3>
+    <p class="ct">
+        Now you understand why:
+    </p>
+ 
+    <div class="cbw">
+        <div class="cbh">
+            <span>Alias Error Examples</span>
+            <span class="cb-lang">SQL</span>
+        </div>
+        <div class="cb"><span class="cm">-- ❌ WRONG: alias not available in WHERE (WHERE executes before SELECT)</span>
+<span class="kw">SELECT</span> revenue * <span class="nb">1.1</span> <span class="kw">AS</span> adjusted_revenue
+<span class="kw">FROM</span> orders
+<span class="kw">WHERE</span> adjusted_revenue > <span class="nb">100</span>;
+<span class="cm">-- ERROR: column "adjusted_revenue" does not exist</span>
+<span class="cm">-- Reason: WHERE runs in Step 2, SELECT runs in Step 5</span>
+ 
+<span class="cm">-- ✅ CORRECT: use the expression, not the alias</span>
+<span class="kw">SELECT</span> revenue * <span class="nb">1.1</span> <span class="kw">AS</span> adjusted_revenue
+<span class="kw">FROM</span> orders
+<span class="kw">WHERE</span> revenue * <span class="nb">1.1</span> > <span class="nb">100</span>;
+ 
+<span class="cm">-- ✅ CORRECT: alias available in ORDER BY (ORDER BY runs after SELECT)</span>
+<span class="kw">SELECT</span> revenue * <span class="nb">1.1</span> <span class="kw">AS</span> adjusted_revenue
+<span class="kw">FROM</span> orders
+<span class="kw">ORDER BY</span> adjusted_revenue <span class="kw">DESC</span>;
+ 
+<span class="cm">-- ❌ WRONG: aggregate not available in WHERE</span>
+<span class="kw">SELECT</span> country, <span class="kw">SUM</span>(revenue)
+<span class="kw">FROM</span> orders
+<span class="kw">WHERE</span> <span class="kw">SUM</span>(revenue) > <span class="nb">10000</span>;
+<span class="cm">-- ERROR: aggregate functions are not allowed in WHERE clause</span>
+ 
+<span class="cm">-- ✅ CORRECT: use HAVING (executes after GROUP BY)</span>
+<span class="kw">SELECT</span> country, <span class="kw">SUM</span>(revenue)
+<span class="kw">FROM</span> orders
+<span class="kw">GROUP BY</span> country
+<span class="kw">HAVING</span> <span class="kw">SUM</span>(revenue) > <span class="nb">10000</span>;</div>
+    </div>
+ 
+    <div class="co co-p">
+        The #1 beginner mistake: putting WHERE filters on aggregates. Example: <code>WHERE COUNT(*) > 5</code> — this is wrong, use <code>HAVING COUNT(*) > 5</code> instead.
+    </div>
+ 
+    <h3 class="ss">2.4 Performance Implication: Early Filtering</h3>
+    <p class="ct">
+        Understanding execution order has a huge performance implication: <strong>filters applied early (in WHERE) are much faster than filters applied late (in HAVING or ORDER BY)</strong>.
+    </p>
+ 
+    <div class="cbw">
+        <div class="cbh">
+            <span>Performance: Early vs. Late Filtering</span>
+            <span class="cb-lang">SQL</span>
+        </div>
+        <div class="cb"><span class="cm">-- ❌ SLOW: filters 1M rows, groups, then filters</span>
+<span class="kw">SELECT</span> country, <span class="kw">SUM</span>(revenue)
+<span class="kw">FROM</span> orders
+<span class="kw">GROUP BY</span> country
+<span class="kw">HAVING</span> status = <span class="st">'completed'</span>  <span class="cm">-- Wrong: should be in WHERE</span>
+<span class="kw">HAVING</span> <span class="kw">SUM</span>(revenue) > <span class="nb">10000</span>;
+ 
+<span class="cm">-- ✅ FAST: filter early, then aggregate</span>
+<span class="kw">SELECT</span> country, <span class="kw">SUM</span>(revenue)
+<span class="kw">FROM</span> orders
+<span class="kw">WHERE</span> status = <span class="st">'completed'</span>  <span class="cm">-- Early: reduces 1M → 500K rows</span>
+<span class="kw">GROUP BY</span> country
+<span class="kw">HAVING</span> <span class="kw">SUM</span>(revenue) > <span class="nb">10000</span>;  <span class="cm">-- Late: filters 150 groups → 30 groups</span>
+ 
+<span class="cm">-- Performance difference: 5–10x for large tables</span></div>
+    </div>
+ 
+    <div class="co co-i">
+        The optimizer tries to push filters down as early as possible (predicate pushdown), but only if it's semantically correct. It can push <code>status = 'completed'</code> down to WHERE, but it cannot push non-aggregate filters into WHERE if they depend on the GROUP BY.
+    </div>
+ 
+    <h3 class="ss">2.5 Key Takeaway — Execution Order Rules</h3>
+    <table class="tb">
+        <thead>
+            <tr>
+                <th>What You Want to Do</th>
+                <th>Use This Clause</th>
+                <th>Why</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Filter rows (before grouping)</td>
+                <td><code>WHERE</code></td>
+                <td>Executes early, reduces data flowing through pipeline</td>
+            </tr>
+            <tr>
+                <td>Filter groups (after grouping)</td>
+                <td><code>HAVING</code></td>
+                <td>Executes after GROUP BY</td>
+            </tr>
+            <tr>
+                <td>Use SELECT alias in filter</td>
+                <td>Can't do it; use expression instead or <code>HAVING</code></td>
+                <td>WHERE before SELECT, HAVING after</td>
+            </tr>
+            <tr>
+                <td>Use SELECT alias in ORDER BY</td>
+                <td><code>ORDER BY alias_name</code></td>
+                <td>ORDER BY executes after SELECT</td>
+            </tr>
+            <tr>
+                <td>Use aggregate in filter</td>
+                <td><code>HAVING</code></td>
+                <td>Aggregates computed during GROUP BY, used in HAVING</td>
+            </tr>
+            <tr>
+                <td>Use aggregate in ORDER BY</td>
+                <td><code>ORDER BY SUM(col), COUNT(*), etc.</code></td>
+                <td>Aggregates available after GROUP BY</td>
+            </tr>
+        </tbody>
+    </table>
+ 
+    <div class="co co-n">
+        When interviewing: "Walk me through the execution order of this query." They should mention FROM, then WHERE (filters rows), then GROUP BY, then HAVING (filters groups), then SELECT (where aliases become available), then ORDER BY and LIMIT. If they say SELECT first or forget HAVING, they don't understand SQL deeply.
+    </div>
+ 
+    <h3 class="ss">2.6 Key Takeaway — The Logical Execution Order</h3>
+    <div class="kt">
+        <strong>SQL Execution Order (Not Written Order):</strong> FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT. <strong>This is why aliases are not available in WHERE but are available in ORDER BY.</strong> This is why aggregate functions are not allowed in WHERE but are required in HAVING. <strong>Always filter as early as possible (WHERE before GROUP BY).</strong>
+    </div>
+</div>
+ 
+</div><!-- end .gc -->
+
+
+<script src="../_shared/sidebar.js"></script>
+</body>
+</html>
