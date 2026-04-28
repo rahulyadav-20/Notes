@@ -1,0 +1,76 @@
+/* =====================================================
+   app.css — only what Tailwind can't do:
+   pseudo-elements with dynamic CSS vars + keyframes
+   ===================================================== */
+
+/* ── Dynamic card accent bars (top) ─────────────────── */
+/* --nc = note color, set as inline style on each card   */
+.card-accent::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: var(--nc, #4A90D9);
+  border-radius: 20px 20px 0 0;
+}
+
+/* ── Category card left accent bar ──────────────────── */
+/* --cc = category color, set as inline style            */
+.cat-accent::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: var(--cc, #4A90D9);
+  border-radius: 16px 0 0 16px;
+}
+
+/* ── Sidebar accent (note page) ─────────────────────── */
+.sidebar-accent {
+  border-right: 1.5px solid #e2e5f0;
+}
+.sidebar-part-active {
+  background: color-mix(in srgb, var(--nc, #4A90D9) 10%, #f0f2ff) !important;
+}
+.sidebar-part-active .part-title { color: var(--nc, #4A90D9) !important; }
+.sidebar-part-active .part-num   {
+  background: color-mix(in srgb, var(--nc, #4A90D9) 20%, #fff);
+  color: var(--nc, #4A90D9);
+}
+
+/* ── Cat-card hover border ───────────────────────────── */
+.cat-card-hover:hover {
+  border-color: color-mix(in srgb, var(--cc, #4A90D9) 40%, #e2e5f0);
+}
+.note-card-hover:hover {
+  border-color: color-mix(in srgb, var(--nc, #4A90D9) 40%, #e2e5f0);
+}
+
+/* ── Nav active underline ────────────────────────────── */
+.nav-active-line::after {
+  content: '';
+  position: absolute; bottom: 2px; left: 14px; right: 14px;
+  height: 2px; background: #f5820a; border-radius: 2px;
+}
+
+/* ── Hero highlight underline animation ─────────────── */
+.hero-highlight { position: relative; display: inline-block; }
+.hero-highlight::after {
+  content: '';
+  position: absolute; left: 0; bottom: -4px; right: 0;
+  height: 3px; background: linear-gradient(90deg, #f5820a, #ff9f30);
+  border-radius: 3px; transform: scaleX(0); transform-origin: left;
+  animation: underline-grow 0.8s ease-out 1.2s forwards;
+}
+
+/* ── Skeleton shimmer ────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, #e8ebf7 25%, #e2e5f0 50%, #e8ebf7 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 6px;
+}
+
+/* ── Keyframes ───────────────────────────────────────── */
+@keyframes underline-grow { to { transform: scaleX(1); } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(245,130,10,0.2); }
+  50%       { box-shadow: 0 0 0 6px rgba(245,130,10,0.08); }
+}

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Engineering Deep-Dive Guides — Knowledge Base</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0a0e27;color:#e2e8f0;min-height:100vh}
+
+/* ===== PAGE HEADER ===== */
+.header{
+  text-align:center;padding:60px 30px 40px;
+  background:linear-gradient(180deg,rgba(255,255,255,.05),transparent);
+}
+
+.main-title{
+  font-size:4em;font-weight:900;color:#fff;margin-bottom:16px;
+  letter-spacing:-2px;
+}
+
+.main-subtitle{
+  font-size:1.2em;color:#94a3b8;font-weight:400;letter-spacing:.5px;
+}
+
+/* ===== MAIN ===== */
+.main{max-width:1200px;margin:0 auto;padding:40px 30px 80px}
+
+.section-title{
+  font-size:1.8em;font-weight:700;color:#fff;margin-bottom:40px;
+  text-align:center;
+}
+
+/* ===== CATEGORY GRID ===== */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:28px;margin-bottom:80px;
+}
+
+.category-card{
+  background:linear-gradient(165deg,color-mix(in srgb,var(--accent) 10%,#0f1525),#0a0e27);
+  border:1px solid color-mix(in srgb,var(--accent) 22%,#1a1f3a);
+  border-radius:24px;padding:0;
+  text-decoration:none;color:#e2e8f0;
+  display:flex;flex-direction:column;
+  transition:all .4s cubic-bezier(.16,.84,.44,1);
+  position:relative;overflow:hidden;
+  opacity:0;transform:translateY(30px);
+  animation:fadeSlideUp .6s ease-out forwards;
+  backdrop-filter:blur(10px);
+}
+
+.category-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:5px;
+  background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 60%,transparent));
+  opacity:.8;
+}
+
+.category-card::after{
+  content:'';position:absolute;top:0;left:0;width:100%;height:100%;
+  background:radial-gradient(circle at top right,color-mix(in srgb,var(--accent) 8%,transparent),transparent);
+  pointer-events:none;
+}
+
+.category-inner{padding:40px;display:flex;flex-direction:column;flex:1;position:relative;z-index:1}
+
+.category-icon{
+  width:64px;height:64px;margin-bottom:20px;
+  background:color-mix(in srgb,var(--accent) 20%,#1a1f3a);
+  border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);
+  border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:2em;flex-shrink:0;
+}
+
+.category-name{
+  font-size:1.5em;font-weight:700;color:#fff;margin-bottom:8px;line-height:1.2;
+}
+
+.category-desc{
+  font-size:.95em;color:#94a3b8;line-height:1.6;flex:1;margin-bottom:24px;
+}
+
+.category-badge{
+  display:inline-flex;
+  background:color-mix(in srgb,var(--accent) 18%,transparent);
+  border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);
+  color:color-mix(in srgb,var(--accent) 90%,#e2e8f0);
+  padding:6px 16px;border-radius:24px;
+  font-size:.8em;font-weight:600;letter-spacing:.5px;
+}
+
+.category-card:hover{
+  transform:translateY(-6px);
+  border-color:color-mix(in srgb,var(--accent) 48%,#1a1f3a);
+  box-shadow:0 16px 48px rgba(0,0,0,.4),0 0 30px color-mix(in srgb,var(--accent) 18%,transparent);
+}
+
+/* ===== FOOTER ===== */
+.footer{
+  text-align:center;padding:40px 30px;color:#333338;font-size:.9em;
+  border-top:1px solid #2a2a30;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+
+.category-card:nth-child(1){animation-delay:.1s}
+.category-card:nth-child(2){animation-delay:.2s}
+.category-card:nth-child(3){animation-delay:.3s}
+.category-card:nth-child(4){animation-delay:.4s}
+.category-card:nth-child(5){animation-delay:.5s}
+.category-card:nth-child(6){animation-delay:.6s}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:768px){
+  .main-title{font-size:2.4em}
+  .main-subtitle{font-size:1em}
+  .grid{grid-template-columns:1fr}
+  .category-inner{padding:32px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="header">
+  <h1 class="main-title">Engineering Deep-Dive Guides</h1>
+  <p class="main-subtitle">Production-grade reference library across domains</p>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+
+  <h2 class="section-title">Knowledge Categories</h2>
+
+  <div class="grid">
+
+    <!-- Data Engineer -->
+    <a class="category-card" href="Data engineer/index.html" style="--accent:#E8714F">
+      <div class="category-inner">
+        <div class="category-icon">📊</div>
+        <div class="category-name">Data Engineer</div>
+        <div class="category-desc">Spark, Druid, Kafka, Flink, GCP, SQL, and data warehouse deep-dives.</div>
+        <div class="category-badge">7 Guides</div>
+      </div>
+    </a>
+
+    <!-- DevOps -->
+    <a class="category-card" href="Devops/index.html" style="--accent:#5B8DBE">
+      <div class="category-inner">
+        <div class="category-icon">⚙️</div>
+        <div class="category-name">DevOps</div>
+        <div class="category-desc">Infrastructure, CI/CD, containerization, orchestration, and deployment strategies.</div>
+        <div class="category-badge">Coming Soon</div>
+      </div>
+    </a>
+
+    <!-- Python -->
+    <a class="category-card" href="Python/index.html" style="--accent:#E8A825">
+      <div class="category-inner">
+        <div class="category-icon">🐍</div>
+        <div class="category-name">Python</div>
+        <div class="category-desc">Language internals, async/await, performance optimization, and best practices.</div>
+        <div class="category-badge">Coming Soon</div>
+      </div>
+    </a>
+
+    <!-- Data Science -->
+    <a class="category-card" href="Data Science/index.html" style="--accent:#D66D5C">
+      <div class="category-inner">
+        <div class="category-icon">🧬</div>
+        <div class="category-name">Data Science</div>
+        <div class="category-desc">ML/DL fundamentals, model training, evaluation, production deployment.</div>
+        <div class="category-badge">Coming Soon</div>
+      </div>
+    </a>
+
+    <!-- WebDev -->
+    <a class="category-card" href="WebDev/index.html" style="--accent:#5BA89E">
+      <div class="category-inner">
+        <div class="category-icon">🌐</div>
+        <div class="category-name">Web Development</div>
+        <div class="category-desc">Frontend frameworks, backend APIs, databases, and full-stack architecture.</div>
+        <div class="category-badge">Coming Soon</div>
+      </div>
+    </a>
+
+    <!-- Shared Resources -->
+    <a class="category-card" href="shared/" style="--accent:#A68BA1">
+      <div class="category-inner">
+        <div class="category-icon">📚</div>
+        <div class="category-name">Shared Resources</div>
+        <div class="category-desc">Common styles, scripts, and reusable components across all guides.</div>
+        <div class="category-badge">Foundations</div>
+      </div>
+    </a>
+
+  </div>
+
+</div>
+
+<div class="footer">
+  <p>Engineering Deep-Dive Guides — A comprehensive knowledge base for software engineers</p>
+  <p style="margin-top:12px;color:#1e293b;font-size:.85em">Built with care for deep understanding</p>
+</div>
+
+</body>
+</html>

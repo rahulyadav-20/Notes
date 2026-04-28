@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* ── Brand tokens ──────────────────────────────────── */
+@theme {
+  --color-navy:    #12123a;
+  --color-navy2:   #1e1e5f;
+  --color-accent:  #f5820a;
+  --color-accent2: #ff9f30;
+  --color-base:    #f0f2fa;
+  --color-base2:   #e8ebf7;
+  --color-muted:   #6b7280;
+  --color-line:    #e2e5f0;
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+}
+
+/* ── Base reset — MUST be inside @layer base so Tailwind
+      utilities (which live in @layer utilities) can
+      override it. Plain CSS outside layers wins over
+      layered CSS and would kill mx-auto / px-6 etc.   */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html  { scroll-behavior: smooth; }
+  body  {
+    font-family: var(--font-sans);
+    background: #f0f2fa;
+    color: #12123a;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a      { text-decoration: none; color: inherit; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; }
+  img, svg { display: block; }
+}

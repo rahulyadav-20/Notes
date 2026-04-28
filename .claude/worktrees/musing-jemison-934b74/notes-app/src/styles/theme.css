@@ -1,0 +1,353 @@
+/* ============================================================
+   THEME EXTENSIONS — 3D, Glassmorphism, Animations
+   Builds on top of globals.css — never redefines base vars.
+   ============================================================ */
+
+/* ===== 3D ISOMETRIC DIAGRAM CONTAINER ===== */
+.iso-stage {
+  perspective: 900px;
+  perspective-origin: 50% 40%;
+}
+
+.iso-svg-wrap {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.18));
+  transition: filter 0.3s ease;
+}
+
+.iso-svg-wrap:hover {
+  filter: drop-shadow(0 12px 36px rgba(0, 0, 0, 0.28));
+}
+
+/* Glow filter applied via SVG <filter> — defined in IsoBox.jsx */
+.node-glow {
+  transition: filter 0.25s ease;
+}
+
+/* ===== GLASSMORPHISM CARDS (Home page) ===== */
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+}
+
+/* ===== ANIMATED GRADIENT BORDER ===== */
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.grad-border {
+  position: relative;
+  border-radius: 20px;
+}
+
+.grad-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 22px;
+  background: conic-gradient(from var(--angle), transparent 20%, var(--d) 40%, transparent 60%);
+  animation: spin-border 4s linear infinite;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.grad-border:hover::before {
+  opacity: 1;
+}
+
+@keyframes spin-border {
+  to { --angle: 360deg; }
+}
+
+/* ===== FLOATING ORBS (Cover page) ===== */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(60px);
+  opacity: 0.18;
+}
+
+.orb-1 {
+  width: 500px;
+  height: 500px;
+  top: -150px;
+  right: -150px;
+  background: radial-gradient(circle, var(--d), transparent 70%);
+}
+
+.orb-2 {
+  width: 400px;
+  height: 400px;
+  bottom: -100px;
+  left: -100px;
+  background: radial-gradient(circle, #5DB85B, transparent 70%);
+}
+
+.orb-3 {
+  width: 300px;
+  height: 300px;
+  top: 40%;
+  left: 40%;
+  background: radial-gradient(circle, var(--d), transparent 70%);
+  opacity: 0.08;
+}
+
+/* ===== SECTION FADE-IN (via Framer Motion whileInView) ===== */
+.section-animate {
+  will-change: opacity, transform;
+}
+
+/* ===== CODE BLOCK — Copy Button ===== */
+.cbw-wrapper {
+  position: relative;
+}
+
+.cb-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #bac2de;
+  font-size: 0.72em;
+  padding: 4px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: var(--fc);
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.cb-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.cb-copy-btn.copied {
+  background: rgba(93, 184, 91, 0.25);
+  border-color: rgba(93, 184, 91, 0.5);
+  color: #5DB85B;
+}
+
+/* ===== HOME PAGE DARK THEME ===== */
+.home-root {
+  background: #0a0e27;
+  min-height: 100vh;
+  color: #e2e8f0;
+}
+
+.home-header {
+  text-align: center;
+  padding: 80px 30px 50px;
+  position: relative;
+  overflow: hidden;
+}
+
+.home-header-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), transparent);
+  pointer-events: none;
+}
+
+.home-title {
+  font-size: clamp(2.4em, 6vw, 4em);
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -2px;
+  margin-bottom: 14px;
+  position: relative;
+}
+
+.home-title span {
+  background: linear-gradient(135deg, #fff, #a8c8f0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.home-subtitle {
+  font-size: 1.15em;
+  color: #94a3b8;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  position: relative;
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 28px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 30px 80px;
+}
+
+/* ===== TOPIC CARD ===== */
+.topic-card {
+  background: linear-gradient(165deg,
+    color-mix(in srgb, var(--tc) 10%, #0f1525),
+    #0a0e27
+  );
+  border: 1px solid color-mix(in srgb, var(--tc) 22%, #1a1f3a);
+  border-radius: 24px;
+  text-decoration: none;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(.16,.84,.44,1),
+              border-color 0.4s,
+              box-shadow 0.4s;
+}
+
+.topic-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--tc), color-mix(in srgb, var(--tc) 60%, transparent));
+  opacity: 0.85;
+}
+
+.topic-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, color-mix(in srgb, var(--tc) 8%, transparent), transparent);
+  pointer-events: none;
+}
+
+.topic-card:hover {
+  transform: translateY(-6px);
+  border-color: color-mix(in srgb, var(--tc) 48%, #1a1f3a);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.4),
+              0 0 30px color-mix(in srgb, var(--tc) 18%, transparent);
+}
+
+.topic-card-inner {
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.topic-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 20px;
+  background: color-mix(in srgb, var(--tc) 20%, #1a1f3a);
+  border: 1px solid color-mix(in srgb, var(--tc) 40%, transparent);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8em;
+  flex-shrink: 0;
+}
+
+.topic-name {
+  font-size: 1.5em;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.topic-desc {
+  font-size: 0.93em;
+  color: #94a3b8;
+  line-height: 1.65;
+  flex: 1;
+  margin-bottom: 24px;
+}
+
+.topic-badge {
+  display: inline-flex;
+  background: color-mix(in srgb, var(--tc) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tc) 40%, transparent);
+  color: color-mix(in srgb, var(--tc) 90%, #e2e8f0);
+  padding: 6px 16px;
+  border-radius: 24px;
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.topic-count {
+  font-size: 0.72em;
+  color: #4b5563;
+  margin-top: 12px;
+  letter-spacing: 0.5px;
+}
+
+/* ===== HOME FOOTER ===== */
+.home-footer {
+  text-align: center;
+  padding: 30px;
+  color: #2a2a30;
+  font-size: 0.88em;
+  border-top: 1px solid #1a1f3a;
+}
+
+/* ===== PAGE TRANSITION ===== */
+.page-enter {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+/* ===== SIDEBAR MOBILE OVERLAY ===== */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1050;
+  backdrop-filter: blur(2px);
+}
+
+@media (max-width: 900px) {
+  .sidebar-overlay.visible {
+    display: block;
+  }
+}
+
+/* ===== SCROLL TO TOP BUTTON ===== */
+.scroll-top-btn {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--d);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  z-index: 500;
+  font-size: 1.1em;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.scroll-top-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+}

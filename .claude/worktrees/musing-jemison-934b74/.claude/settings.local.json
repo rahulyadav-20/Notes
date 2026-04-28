@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create *)",
+      "Bash(mkdir -p src/pages src/styles)",
+      "Bash(rm -f src/App.css src/index.css public/vite.svg src/assets/react.svg)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "Bash(npx tsc *)",
+      "Bash(del \"C:\\\\Users\\\\Rahul102.Yadav\\\\OneDrive - Reliance Corporate IT Park Limited\\\\Documents\\\\Notes\\\\app\\\\src\\\\styles\\\\theme.css\")",
+      "Bash(xargs sed *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(xargs grep *)",
+      "Bash(xargs wc *)",
+      "Bash(npm install *)"
+    ]
+  }
+}

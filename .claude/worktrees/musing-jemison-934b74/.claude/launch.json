@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "app",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd /d \"C:\\Users\\Rahul102.Yadav\\OneDrive - Reliance Corporate IT Park Limited\\Documents\\Notes\\app\" && npm run dev"],
+      "port": 5173
+    }
+  ]
+}
