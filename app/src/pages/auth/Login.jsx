@@ -1,7 +1,9 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
+﻿import { useState } from 'react'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../../store/authStore'
+
+const IS_DEV = import.meta.env.DEV
 
 function GoogleIcon() {
   return (
@@ -14,34 +16,103 @@ function GoogleIcon() {
   )
 }
 
-export default function Login() {
-  const navigate   = useNavigate()
-  const login      = useAuthStore(s => s.login)
+/* ── Dev role picker modal ─────────────────────────── */
+function DevRolePicker({ onSelect, onClose }) {
+  return (
+    <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      onClick={onClose}>
+      <motion.div className="bg-white rounded-2xl p-6 w-full max-w-[320px] shadow-2xl"
+        initial={{ scale: 0.9, y: 10 }} animate={{ scale: 1, y: 0 }}
+        onClick={e => e.stopPropagation()}>
+        <p className="text-[0.65rem] font-bold uppercase tracking-[2px] text-amber-500 mb-2">
+          🛠 Dev Mode — Pick a role
+        </p>
+        <p className="text-[0.78rem] text-muted mb-4">
+          No Google credentials needed. Signs you in as a test account.
+        </p>
+        <div className="flex flex-col gap-2">
+          {[
+            { role: 'user',    label: 'Free User',    color: '#6b7280', email: 'dev.user@test.local'    },
+            { role: 'premium', label: 'Premium User', color: '#8B5CF6', email: 'dev.premium@test.local' },
+            { role: 'admin',   label: 'Admin',        color: '#EC4899', email: 'dev.admin@test.local'   },
+          ].map(({ role, label, color, email }) => (
+            <button key={role}
+              onClick={() => onSelect(role)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl border border-line
+                hover:bg-base2 transition-colors text-left">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }}/>
+              <div>
+                <div className="text-[0.82rem] font-bold text-navy">{label}</div>
+                <div className="text-[0.65rem] text-muted">{email}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
 
-  const [form, setForm]     = useState({ email: '', password: '' })
-  const [error, setError]   = useState('')
-  const [loading, setLoading] = useState(false)
+export default function Login() {
+  const navigate        = useNavigate()
+  const login           = useAuthStore(s => s.login)
+  const devGoogleLogin  = useAuthStore(s => s.devGoogleLogin)
+  const [searchParams]  = useSearchParams()
+
+  const [form, setForm]         = useState({ email: '', password: '' })
+  const [error, setError]       = useState(
+    searchParams.get('error') === 'oauth' ? 'Google sign-in failed. Please try again.' : ''
+  )
+  const [loading, setLoading]   = useState(false)
+  const [showDevPicker, setDevPicker] = useState(false)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
+  /* ── Email / password submit ── */
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     if (!form.email || !form.password) { setError('Please fill in all fields.'); return }
-    if (form.password.length < 6) { setError('Password must be at least 6 characters.'); return }
+    if (form.password.length < 8)      { setError('Password must be at least 8 characters.'); return }
 
     setLoading(true)
-    await new Promise(r => setTimeout(r, 600)) // simulate network
-    const result = login({ email: form.email.trim().toLowerCase(), password: form.password })
+    const result = await login({ email: form.email.trim().toLowerCase(), password: form.password })
     setLoading(false)
 
     if (result.success) navigate('/dashboard')
-    else setError(result.error || 'Login failed. Please try again.')
+    else setError(result.error)
   }
 
-  const fillDemo = (type) => {
-    if (type === 'free')    setForm({ email: 'free@demo.com',    password: 'demo123' })
-    if (type === 'premium') setForm({ email: 'premium@demo.com', password: 'demo123' })
+  /* ── Google / Dev Google ── */
+  const handleGoogle = () => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    if (googleClientId && !IS_DEV) {
+      // Real Google OAuth — redirect to backend
+      window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`
+    } else {
+      // Dev mode — show role picker
+      setDevPicker(true)
+    }
+  }
+
+  const handleDevRole = async (role) => {
+    setDevPicker(false)
+    setLoading(true)
+    const result = await devGoogleLogin(role)
+    setLoading(false)
+    if (result.success) navigate('/dashboard')
+    else setError(result.error)
+  }
+
+  /* ── Quick-fill test accounts ── */
+  const fillTest = (type) => {
+    const map = {
+      free:    { email: 'user@test.local',    password: 'User@1234'    },
+      premium: { email: 'premium@test.local', password: 'Premium@1234' },
+      admin:   { email: 'admin@test.local',   password: 'Admin@1234'   },
+    }
+    setForm(map[type])
   }
 
   return (
@@ -62,45 +133,47 @@ export default function Login() {
 
       {/* Card */}
       <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <motion.div
-          className="w-full max-w-[420px]"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
+        <motion.div className="w-full max-w-[420px]"
+          initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}>
 
-          {/* Demo accounts hint */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-6">
-            <p className="text-[0.72rem] font-bold text-blue-700 mb-1.5">
-              🧪 Demo Accounts (Phase 1 — no backend yet)
-            </p>
-            <div className="flex gap-2">
-              <button onClick={() => fillDemo('free')}
-                className="text-[0.7rem] font-semibold px-2.5 py-1 rounded-lg
-                  bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200 transition-colors">
-                Free demo
-              </button>
-              <button onClick={() => fillDemo('premium')}
-                className="text-[0.7rem] font-semibold px-2.5 py-1 rounded-lg
-                  bg-purple-100 text-purple-700 border border-purple-300 hover:bg-purple-200 transition-colors">
-                Premium demo
-              </button>
+          {/* Dev quick-access strip */}
+          {IS_DEV && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5">
+              <p className="text-[0.68rem] font-bold text-amber-700 mb-2">
+                🛠 Dev — quick fill test accounts
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {[
+                  { type: 'free',    label: 'Free user',    color: 'bg-slate-100 text-slate-700 border-slate-300'   },
+                  { type: 'premium', label: 'Premium user', color: 'bg-purple-100 text-purple-700 border-purple-300' },
+                  { type: 'admin',   label: 'Admin',        color: 'bg-pink-100 text-pink-700 border-pink-300'       },
+                ].map(({ type, label, color }) => (
+                  <button key={type} onClick={() => fillTest(type)}
+                    className={`text-[0.68rem] font-semibold px-2.5 py-1 rounded-lg border transition-colors hover:opacity-80 ${color}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="bg-white border border-line rounded-2xl p-7 sm:p-9
             shadow-[0_4px_32px_rgba(18,18,58,0.07)]">
 
             <h1 className="text-[1.6rem] font-black text-navy mb-1">Welcome back</h1>
-            <p className="text-[0.83rem] text-muted mb-7">
-              Sign in to your EngiNotes account
-            </p>
+            <p className="text-[0.83rem] text-muted mb-7">Sign in to your EngiNotes account</p>
 
             {/* Google button */}
-            <button className="w-full flex items-center justify-center gap-3 px-4 py-3
-              rounded-xl border-2 border-line font-bold text-[0.88rem] text-navy
-              hover:bg-base2 hover:border-[#c5cae5] transition-all mb-5">
+            <button
+              onClick={handleGoogle}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 px-4 py-3
+                rounded-xl border-2 border-line font-bold text-[0.88rem] text-navy
+                hover:bg-base2 hover:border-[var(--color-line-hover)] transition-all mb-5
+                disabled:opacity-50 disabled:cursor-not-allowed">
               <GoogleIcon/>
-              Continue with Google
+              {IS_DEV ? 'Continue with Google (dev)' : 'Continue with Google'}
             </button>
 
             {/* Divider */}
@@ -129,6 +202,7 @@ export default function Login() {
                 <div className="flex items-center justify-between">
                   <label className="text-[0.75rem] font-bold text-navy">Password</label>
                   <button type="button"
+                    onClick={() => navigate('/forgot-password')}
                     className="text-[0.72rem] font-semibold text-accent hover:opacity-70 transition-opacity">
                     Forgot password?
                   </button>
@@ -144,14 +218,17 @@ export default function Login() {
                 />
               </div>
 
-              {error && (
-                <motion.div
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl
-                    bg-red-50 border border-red-200 text-red-700 text-[0.8rem] font-semibold"
-                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
-                  ⚠️ {error}
-                </motion.div>
-              )}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    className="flex items-center gap-2 px-4 py-3 rounded-xl
+                      bg-red-50 border border-red-200 text-red-700 text-[0.8rem] font-semibold"
+                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}>
+                    ⚠️ {error}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <button
                 type="submit"
@@ -181,6 +258,16 @@ export default function Login() {
           </div>
         </motion.div>
       </div>
+
+      {/* Dev role picker modal */}
+      <AnimatePresence>
+        {showDevPicker && (
+          <DevRolePicker
+            onSelect={handleDevRole}
+            onClose={() => setDevPicker(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -1,6 +1,9 @@
 /* =====================================================
-   BLOG DATA — single source of truth
+   BLOG DATA
+   Static UI config stays here.
+   Post data is fetched from the backend API.
    ===================================================== */
+import { api } from '../api/client'
 
 export const POST_CATEGORIES = [
   { id: 'interview-experience', label: 'Interview Experience', color: '#6366F1', emoji: '🎯' },
@@ -21,6 +24,25 @@ export const COMPANY_COLORS = {
   Stripe:    '#635BFF',
 }
 
+/* ── API helpers (replacing static BLOG_POSTS array) ── */
+
+export async function fetchBlogPosts(category) {
+  const { data } = await api.getBlogPosts(category)
+  return data.posts
+}
+
+export async function getBlogPostBySlug(slug) {
+  const { data } = await api.getBlogPost(slug)
+  return { post: data.post, related: data.related }
+}
+
+/* kept for backwards-compat in Blog.jsx filter logic */
+export async function getBlogPostsByCategory(categoryId) {
+  return fetchBlogPosts(categoryId)
+}
+
+// Legacy static array — replaced by API. Left as empty sentinel so any
+// accidental synchronous usage fails loudly rather than silently.
 export const BLOG_POSTS = [
   /* ── Interview Experiences ── */
   {
@@ -255,28 +277,6 @@ export const BLOG_POSTS = [
     ],
   },
 ]
-
-/* ── Helpers ── */
-export function getBlogPostBySlug(slug) {
-  return BLOG_POSTS.find(p => p.slug === slug) || null
-}
-
-export function getBlogPostsByCategory(categoryId) {
-  if (!categoryId || categoryId === 'all') return BLOG_POSTS
-  return BLOG_POSTS.filter(p => p.category === categoryId)
-}
-
-export function getFeaturedPost() {
-  return BLOG_POSTS.find(p => p.featured) || BLOG_POSTS[0]
-}
-
-export function getRelatedPosts(slug, limit = 3) {
-  const post = getBlogPostBySlug(slug)
-  if (!post) return []
-  return BLOG_POSTS
-    .filter(p => p.slug !== slug && (p.category === post.category || p.tags.some(t => post.tags.includes(t))))
-    .slice(0, limit)
-}
 
 export function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-IN', {

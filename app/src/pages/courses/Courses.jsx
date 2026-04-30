@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
@@ -97,8 +97,8 @@ function CourseCard({ course, slug, categoryId, index }) {
           <span className="text-[0.62rem] font-bold px-2 py-0.5 rounded-md border"
             style={{
               color: course.color,
-              borderColor: `color-mix(in srgb, ${course.color} 30%, #e2e5f0)`,
-              background: `color-mix(in srgb, ${course.color} 8%, #fff)`,
+              borderColor: `color-mix(in srgb, ${course.color} 30%, var(--color-line))`,
+              background: `color-mix(in srgb, ${course.color} 8%, var(--color-surface))`,
             }}>
             {course.level}
           </span>
@@ -193,7 +193,7 @@ export default function Courses() {
             style={{ background: 'radial-gradient(circle, #4A90D9 0%, transparent 70%)' }}/>
         </div>
 
-        <div className="relative max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12 py-16 lg:py-24">
+        <div className="relative max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16 py-16 lg:py-24">
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}>
@@ -230,7 +230,7 @@ export default function Courses() {
 
       {/* ── Category filter tabs ── */}
       <div className="bg-white border-b border-line sticky top-[68px] z-10">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
           <div className="flex items-center gap-1 overflow-x-auto py-3 scrollbar-hide">
             <button
               className={`shrink-0 px-4 py-1.5 rounded-lg text-[0.8rem] font-bold
@@ -260,7 +260,7 @@ export default function Courses() {
 
       {/* ── Courses grid ── */}
       <section className="py-10 lg:py-14 bg-base">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
 
           <div className="flex items-center justify-between mb-6">
             <p className="text-[0.84rem] text-muted">
@@ -294,7 +294,7 @@ export default function Courses() {
 
       {/* ── CTA ── */}
       <section className="py-12 bg-white border-t border-line">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
           <motion.div
             className="bg-[#0f0f23] rounded-2xl px-6 sm:px-12 py-12 text-center relative overflow-hidden"
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}

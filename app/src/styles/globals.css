@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* ── Brand tokens ──────────────────────────────────── */
+/* ── Brand tokens (light mode defaults) ────────────── */
 @theme {
   --color-navy:    #12123a;
   --color-navy2:   #1e1e5f;
@@ -14,22 +14,114 @@
   --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
 }
 
-/* ── Base reset — MUST be inside @layer base so Tailwind
-      utilities (which live in @layer utilities) can
-      override it. Plain CSS outside layers wins over
-      layered CSS and would kill mx-auto / px-6 etc.   */
+/* ── Extra tokens ───────────────────────────────────── */
+:root {
+  --color-tint:       #f5f7ff;   /* light surface tint for color-mix */
+  --color-line-hover: #c5cae5;   /* hover border color               */
+  --color-surface:    #ffffff;   /* white card surface               */
+}
+
+/* ── Dark mode token overrides ─────────────────────── */
+html.dark {
+  --color-navy:       #dde3f0;
+  --color-navy2:      #b8c2dc;
+  --color-base:       #0d0d1a;
+  --color-base2:      #14142a;
+  --color-muted:      #7c8db0;
+  --color-line:       #1e2040;
+  --color-tint:       #1a1a2e;   /* dark tint for color-mix          */
+  --color-line-hover: #2e2e52;
+  --color-surface:    #1c1c30;
+}
+
+/* ── Base reset ────────────────────────────────────── */
 @layer base {
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html  { scroll-behavior: smooth; }
   body  {
     font-family: var(--font-sans);
-    background: #f0f2fa;
-    color: #12123a;
+    background: var(--color-base);
+    color: var(--color-navy);
     line-height: 1.75;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
   a      { text-decoration: none; color: inherit; }
   button { font-family: inherit; cursor: pointer; border: none; background: none; }
   img, svg { display: block; }
+}
+
+/* ── Dark mode surface overrides ───────────────────── */
+
+/* White cards / panels */
+html.dark .bg-white {
+  background-color: var(--color-surface) !important;
+}
+
+/* Semi-transparent white (Navbar, mobile menu) */
+html.dark .bg-white\/90,
+html.dark .bg-white\/97 {
+  background-color: rgba(13, 13, 26, 0.92) !important;
+}
+
+/* Inputs & form fields */
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #14142a !important;
+  color: var(--color-navy) !important;
+  border-color: var(--color-line) !important;
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #4a5280 !important;
+}
+
+/* Amber/yellow highlights (free plan badges etc) */
+html.dark .bg-amber-100  { background-color: rgba(245,158,11,0.15) !important; }
+html.dark .bg-amber-50   { background-color: rgba(245,158,11,0.08) !important; }
+html.dark .text-amber-700 { color: #fbbf24 !important; }
+html.dark .border-amber-200 { border-color: rgba(245,158,11,0.3) !important; }
+
+/* Red danger */
+html.dark .bg-red-50  { background-color: rgba(239,68,68,0.08) !important; }
+html.dark .bg-red-100 { background-color: rgba(239,68,68,0.15) !important; }
+
+/* Blue info */
+html.dark .bg-blue-50 { background-color: rgba(59,130,246,0.08) !important; }
+
+/* Green success */
+html.dark .bg-green-50  { background-color: rgba(16,185,129,0.08) !important; }
+html.dark .bg-green-100 { background-color: rgba(16,185,129,0.12) !important; }
+
+/* ── bg-navy overrides ──────────────────────────────── */
+/* bg-navy is used as a dark section background (footer, CTAs, active tabs).
+   In dark mode --color-navy becomes light for text use, but bg-navy
+   must stay dark. */
+html.dark .bg-navy {
+  background-color: #0d0d1e !important;
+}
+/* Navbar hamburger bars use bg-navy and need to stay visible (light) on dark nav */
+html.dark nav .bg-navy {
+  background-color: var(--color-navy) !important;
+}
+/* border-navy on active tabs */
+html.dark .border-navy {
+  border-color: #2d2d50 !important;
+}
+
+/* ── Scroll bar in dark mode ─────────────────────────── */
+html.dark ::-webkit-scrollbar-track { background: #0d0d1a; }
+html.dark ::-webkit-scrollbar-thumb { background: #2a2a45; }
+
+/* Smooth transitions for theme switching */
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition:
+    background-color 0.25s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease !important;
 }

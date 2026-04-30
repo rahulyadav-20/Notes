@@ -12,7 +12,10 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(xargs grep *)",
       "Bash(xargs wc *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "PowerShell(cd \"C:\\\\Users\\\\Rahul102.Yadav\\\\OneDrive - Reliance Corporate IT Park Limited\\\\Documents\\\\Notes\\\\app\"; Start-Process -FilePath \"cmd.exe\" -ArgumentList \"/k npm run dev\" -WorkingDirectory \\(Get-Location\\).Path; Write-Output \"Dev server launched in new window\")",
+      "Bash(node fix-encoding.mjs)",
+      "Bash(node -e ' *)"
     ]
   }
 }

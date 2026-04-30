@@ -1,12 +1,26 @@
-import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
 import Footer from '../../components/layout/Footer'
 import {
-  BLOG_POSTS, POST_CATEGORIES, COMPANY_COLORS,
-  getFeaturedPost, getBlogPostsByCategory, formatDate,
+  POST_CATEGORIES, COMPANY_COLORS, fetchBlogPosts, formatDate,
 } from '../../data/blog'
+
+// Normalize API snake_case to the shape components expect
+function normalize(p) {
+  return {
+    ...p,
+    category: p.category_id,
+    date:     p.published_at,
+    readTime: p.read_time,
+    author: {
+      name:     p.author_name,
+      initials: p.author_initials,
+      color:    p.author_color,
+    },
+  }
+}
 
 /* ── Category badge ── */
 function CatBadge({ categoryId, small }) {
@@ -15,7 +29,7 @@ function CatBadge({ categoryId, small }) {
   return (
     <span className={`font-bold rounded-full inline-flex items-center gap-1
       ${small ? 'text-[0.6rem] px-2 py-0.5' : 'text-[0.65rem] px-2.5 py-1'}`}
-      style={{ color: cat.color, background: `color-mix(in srgb, ${cat.color} 12%, #f5f7ff)` }}>
+      style={{ color: cat.color, background: `color-mix(in srgb, ${cat.color} 12%, var(--color-tint))` }}>
       {cat.emoji} {cat.label}
     </span>
   )
@@ -29,8 +43,8 @@ function CompanyBadge({ company }) {
     <span className="text-[0.6rem] font-bold px-2 py-0.5 rounded-md border"
       style={{
         color,
-        borderColor: `color-mix(in srgb, ${color} 30%, #e2e5f0)`,
-        background:  `color-mix(in srgb, ${color} 8%, #fff)`,
+        borderColor: `color-mix(in srgb, ${color} 30%, var(--color-line))`,
+        background:  `color-mix(in srgb, ${color} 8%, var(--color-surface))`,
       }}>
       {company}
     </span>
@@ -56,7 +70,7 @@ function FeaturedCard({ post }) {
   return (
     <motion.div
       className="relative overflow-hidden rounded-2xl cursor-pointer group
-        border border-line hover:border-[#c5cae5] transition-all
+        border border-line hover:border-[var(--color-line-hover)] transition-all
         hover:shadow-[0_16px_48px_rgba(18,18,58,0.10)]"
       initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45 }}
@@ -137,7 +151,7 @@ function PostCard({ post, index }) {
   return (
     <motion.div
       className="bg-white border border-line rounded-2xl overflow-hidden flex flex-col
-        cursor-pointer group hover:border-[#c5cae5]
+        cursor-pointer group hover:border-[var(--color-line-hover)]
         hover:shadow-[0_8px_32px_rgba(18,18,58,0.08)] transition-all"
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -238,12 +252,27 @@ function WriteBanner() {
 /* ── Blog page ── */
 export default function Blog() {
   const [activeCategory, setActiveCategory] = useState('all')
+  const [posts, setPosts]     = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
 
-  const featured  = getFeaturedPost()
-  const allOthers = BLOG_POSTS.filter(p => !p.featured)
-  const filtered  = activeCategory === 'all'
-    ? allOthers
-    : allOthers.filter(p => p.category === activeCategory)
+  useEffect(() => {
+    setLoading(true)
+    fetchBlogPosts(activeCategory === 'all' ? undefined : activeCategory)
+      .then(raw => setPosts(raw.map(normalize)))
+      .catch(() => setError('Failed to load posts.'))
+      .finally(() => setLoading(false))
+  }, [activeCategory])
+
+  const featured  = posts.find(p => p.is_featured) || posts[0]
+  const nonFeatured = posts.filter(p => !p.is_featured)
+
+  const stats = [
+    { num: String(posts.length),                                                              label: 'Articles' },
+    { num: String(posts.filter(p => p.category === 'interview-experience').length),           label: 'Interview Stories' },
+    { num: String(new Set(posts.map(p => p.author?.name).filter(Boolean)).size),             label: 'Authors' },
+    { num: String(new Set(posts.flatMap(p => p.company ? [p.company] : [])).size),           label: 'Companies Covered' },
+  ]
 
   return (
     <>
@@ -251,7 +280,7 @@ export default function Blog() {
 
       {/* ── Hero ── */}
       <div className="bg-white border-b border-line py-12 lg:py-14">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}>
             <p className="text-[0.68rem] font-bold uppercase tracking-[3px] text-accent mb-3">
@@ -272,14 +301,9 @@ export default function Blog() {
 
       {/* ── Stats strip ── */}
       <div className="bg-white border-b border-line">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
           <div className="flex items-center gap-8 py-4 overflow-x-auto">
-            {[
-              { num: `${BLOG_POSTS.length}`, label: 'Articles' },
-              { num: `${BLOG_POSTS.filter(p => p.category === 'interview-experience').length}`, label: 'Interview Stories' },
-              { num: `${new Set(BLOG_POSTS.map(p => p.author.name)).size}`, label: 'Authors' },
-              { num: `${new Set(BLOG_POSTS.flatMap(p => p.company ? [p.company] : [])).size}`, label: 'Companies Covered' },
-            ].map((s, i) => (
+            {stats.map((s, i) => (
               <motion.div key={s.label}
                 className="flex items-center gap-2 shrink-0"
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -295,15 +319,17 @@ export default function Blog() {
       </div>
 
       {/* ── Featured post ── */}
-      <section className="pt-10 pb-4 bg-base">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
-          <FeaturedCard post={featured}/>
-        </div>
-      </section>
+      {featured && (
+        <section className="pt-10 pb-4 bg-base">
+          <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
+            <FeaturedCard post={featured}/>
+          </div>
+        </section>
+      )}
 
       {/* ── Filter + grid ── */}
       <section className="py-8 lg:py-12 bg-base">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
 
           {/* Filter tabs */}
           <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-1 flex-wrap">
@@ -311,7 +337,7 @@ export default function Blog() {
               className={`shrink-0 px-4 py-1.5 rounded-lg text-[0.8rem] font-bold
                 border transition-all ${activeCategory === 'all'
                   ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-muted border-line hover:border-[#c5cae5]'}`}
+                  : 'bg-white text-muted border-line hover:border-[var(--color-line-hover)]'}`}
               onClick={() => setActiveCategory('all')}>
               All Posts
             </button>
@@ -321,7 +347,7 @@ export default function Blog() {
                   text-[0.8rem] font-bold border transition-all ${
                   activeCategory === cat.id
                     ? 'text-white border-transparent'
-                    : 'bg-white text-muted border-line hover:border-[#c5cae5]'
+                    : 'bg-white text-muted border-line hover:border-[var(--color-line-hover)]'
                 }`}
                 style={activeCategory === cat.id
                   ? { background: cat.color, borderColor: cat.color }
@@ -331,29 +357,45 @@ export default function Blog() {
               </button>
             ))}
             <span className="text-[0.78rem] text-muted ml-auto shrink-0">
-              {filtered.length + (activeCategory === 'all' ? 1 : 0)} post{filtered.length !== 1 ? 's' : ''}
+              {nonFeatured.length} post{nonFeatured.length !== 1 ? 's' : ''}
             </span>
           </div>
 
+          {/* Error */}
+          {error && (
+            <div className="text-center py-16 text-red-500">{error}</div>
+          )}
+
+          {/* Loading skeleton */}
+          {loading && !error && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-white border border-line rounded-2xl h-64 animate-pulse"/>
+              ))}
+            </div>
+          )}
+
           {/* Grid */}
-          <AnimatePresence mode="wait">
-            <motion.div key={activeCategory}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-              {filtered.length > 0
-                ? filtered.map((post, i) => (
-                    <PostCard key={post.slug} post={post} index={i}/>
-                  ))
-                : (
-                  <div className="col-span-full text-center py-16 text-muted">
-                    <div className="text-4xl mb-3">📭</div>
-                    <p>No posts in this category yet</p>
-                  </div>
-                )
-              }
-            </motion.div>
-          </AnimatePresence>
+          {!loading && !error && (
+            <AnimatePresence mode="wait">
+              <motion.div key={activeCategory}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                {nonFeatured.length > 0
+                  ? nonFeatured.map((post, i) => (
+                      <PostCard key={post.slug} post={post} index={i}/>
+                    ))
+                  : (
+                    <div className="col-span-full text-center py-16 text-muted">
+                      <div className="text-4xl mb-3">📭</div>
+                      <p>No posts in this category yet</p>
+                    </div>
+                  )
+                }
+              </motion.div>
+            </AnimatePresence>
+          )}
 
           {/* Write CTA */}
           <div className="mt-12">

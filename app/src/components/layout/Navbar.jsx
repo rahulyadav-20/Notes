@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
@@ -144,7 +144,7 @@ export default function Navbar() {
         className="sticky top-0 z-[100] bg-white/90 backdrop-blur-xl border-b border-line h-[68px] flex items-center"
         initial={{ y: -80, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}>
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12 w-full flex items-center gap-6 lg:gap-9">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16 w-full flex items-center gap-6 lg:gap-9">
 
           {/* Logo */}
           <motion.a className="flex items-center gap-2.5 no-underline shrink-0" href="/"
@@ -187,7 +187,7 @@ export default function Navbar() {
             ) : (
               <>
                 <motion.button
-                  className="px-4 py-2 rounded-lg text-sm font-semibold text-navy border border-line hover:bg-base2 hover:border-[#c5cae5] transition-all"
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-navy border border-line hover:bg-base2 hover:border-[var(--color-line-hover)] transition-all"
                   whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
                   onClick={() => navigate('/login')}>
                   Log in
@@ -219,7 +219,7 @@ export default function Navbar() {
       <AnimatePresence>
         {open && (
           <motion.div
-            className="lg:hidden sticky top-[68px] z-[99] bg-white/97 backdrop-blur-xl border-b border-line px-4 sm:px-6 py-4 flex flex-col gap-1 shadow-lg"
+            className="lg:hidden sticky top-[68px] z-[99] bg-white/97 backdrop-blur-xl border-b border-line px-6 sm:px-8 py-4 flex flex-col gap-1 shadow-lg"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}

@@ -1,0 +1,28 @@
+export default [
+  {
+    slug: 'overfitting',
+    title: 'How Do You Handle Overfitting?',
+    difficulty: 'Medium',
+    companies: ['Google', 'Meta', 'Amazon', 'Netflix'],
+    tags: ['Machine Learning', 'Regularization', 'Model Selection'],
+    timeComplexity: 'N/A', spaceComplexity: 'N/A',
+    acceptance: 'N/A',
+    description: 'Your model has 98% training accuracy but 65% validation accuracy. What do you do?',
+    answer: 'Regularization (L1/L2, Dropout for NNs). Get more training data. Data augmentation. Cross-validation. Feature selection / reduce model complexity. Early stopping. Ensemble methods.',
+    hints: ['What is the bias-variance tradeoff?', 'When does more data NOT help?'],
+    isPremium: false,
+  },
+  {
+    slug: 'class-imbalance',
+    title: 'How Do You Handle Class Imbalance?',
+    difficulty: 'Medium',
+    companies: ['Google', 'Amazon', 'Stripe', 'PayPal'],
+    tags: ['Machine Learning', 'Sampling', 'Metrics'],
+    timeComplexity: 'N/A', spaceComplexity: 'N/A',
+    acceptance: 'N/A',
+    description: 'You are building a fraud detection model with 99.9% legit transactions. How do you handle this?',
+    answer: 'Use the right metric (F1, AUC-ROC, Precision-Recall — not accuracy). Resampling: oversample minority (SMOTE) or undersample majority. Class weights in loss function. Threshold tuning. Anomaly detection framing.',
+    hints: ['Why is accuracy a bad metric here?', 'What is SMOTE?'],
+    isPremium: false,
+  },
+]

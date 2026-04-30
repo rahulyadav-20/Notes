@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
@@ -68,7 +68,7 @@ function CourseRowCard({ course, categoryId, index }) {
         p-4 sm:p-5 overflow-hidden
         ${course.soon
           ? 'opacity-60'
-          : 'cursor-pointer hover:border-[#c5cae5] hover:shadow-[0_8px_28px_rgba(18,18,58,0.08)] transition-all'}`}
+          : 'cursor-pointer hover:border-[var(--color-line-hover)] hover:shadow-[0_8px_28px_rgba(18,18,58,0.08)] transition-all'}`}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.25) }}
@@ -85,8 +85,8 @@ function CourseRowCard({ course, categoryId, index }) {
           <span className="text-[0.62rem] font-bold px-2 py-0.5 rounded-md border"
             style={{
               color: course.color,
-              borderColor: `color-mix(in srgb, ${course.color} 30%, #e2e5f0)`,
-              background: `color-mix(in srgb, ${course.color} 8%, #fff)`,
+              borderColor: `color-mix(in srgb, ${course.color} 30%, var(--color-line))`,
+              background: `color-mix(in srgb, ${course.color} 8%, var(--color-surface))`,
             }}>
             {course.level}
           </span>
@@ -190,11 +190,11 @@ export default function CourseCategoryPage() {
 
       {/* ── Breadcrumb ── */}
       <div className="bg-white border-b border-line py-3">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16
           flex items-center gap-2 text-[0.8rem]">
           <button className="font-semibold text-muted hover:text-navy transition-colors"
             onClick={() => navigate('/courses')}>Courses</button>
-          <svg className="text-[#b0b8d0]" width="12" height="12" viewBox="0 0 24 24"
+          <svg className="text-[var(--color-muted)]" width="12" height="12" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M9 18l6-6-6-6"/>
           </svg>
@@ -214,7 +214,7 @@ export default function CourseCategoryPage() {
                              repeating-linear-gradient(90deg, white 0px, white 1px, transparent 1px, transparent 40px)`,
           }}/>
 
-        <div className="relative max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12 py-12 lg:py-16">
+        <div className="relative max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16 py-12 lg:py-16">
           <motion.button
             className="inline-flex items-center gap-1.5 text-[0.78rem] font-bold
               text-white/50 mb-6 hover:text-white/80 transition-colors"
@@ -261,7 +261,7 @@ export default function CourseCategoryPage() {
 
       {/* ── Filter + List ── */}
       <section className="py-10 lg:py-14 bg-base">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
 
           {/* Filter row */}
           <div className="flex items-center justify-between gap-4 mb-7 flex-wrap">
@@ -272,7 +272,7 @@ export default function CourseCategoryPage() {
                   className={`px-3.5 py-1.5 rounded-lg text-[0.78rem] font-bold
                     border transition-all ${levelFilter === l
                       ? 'bg-navy text-white border-navy'
-                      : 'bg-white text-muted border-line hover:border-[#c5cae5]'}`}
+                      : 'bg-white text-muted border-line hover:border-[var(--color-line-hover)]'}`}
                   onClick={() => setLevelFilter(l)}>
                   {l}
                 </button>

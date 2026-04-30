@@ -1,0 +1,40 @@
+{
+  "name": "notes-backend",
+  "version": "1.0.0",
+  "description": "Engineering Learning Platform — API server",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev":          "node --watch server.js",
+    "start":        "node server.js",
+    "db:migrate":   "node src/db/migrate.js",
+    "db:seed":      "node src/db/seed.js",
+    "db:content":   "node src/db/seedContent.js",
+    "db:setup":     "node src/db/migrate.js && node src/db/seed.js",
+    "docker:up":    "docker compose up -d",
+    "docker:down":  "docker compose down",
+    "docker:reset": "docker compose down -v && docker compose up -d",
+    "db:backup":    "docker exec learndb_postgres pg_dump -U postgres learndb > backups/learndb_%date:~-4,4%%date:~-10,2%%date:~-7,2%.sql",
+    "db:restore":   "docker exec -i learndb_postgres psql -U postgres learndb < backups/learndb_latest.sql"
+  },
+  "dependencies": {
+    "bcryptjs":                "^2.4.3",
+    "cookie-parser":           "^1.4.7",
+    "cors":                    "^2.8.5",
+    "dotenv":                  "^16.4.7",
+    "express":                 "^4.21.2",
+    "express-rate-limit":      "^7.5.0",
+    "express-validator":       "^7.2.1",
+    "helmet":                  "^8.0.0",
+    "ioredis":                 "^5.4.2",
+    "jsonwebtoken":            "^9.0.2",
+    "passport":                "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "pg":                      "^8.13.1",
+    "resend":                  "^4.5.1",
+    "uuid":                    "^11.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

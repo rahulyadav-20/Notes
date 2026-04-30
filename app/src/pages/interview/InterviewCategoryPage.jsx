@@ -1,16 +1,18 @@
-import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
 import Footer from '../../components/layout/Footer'
-import { getInterviewCategoryWithQuestions, DIFFICULTY_COLOR } from '../../data/interview'
+import { INTERVIEW_CATEGORIES, DIFFICULTY_COLOR, loadCategoryQuestions } from '../../data/interview/index.js'
+import { api } from '../../api/client'
+import { useAuth } from '../../hooks/useAuth'
 
 /* ── Difficulty badge ── */
 function DiffBadge({ d }) {
   const c = DIFFICULTY_COLOR[d] || '#6b7280'
   return (
     <span className="text-[0.7rem] font-bold px-2.5 py-1 rounded-full whitespace-nowrap"
-      style={{ color: c, background: `color-mix(in srgb, ${c} 12%, #f5f7ff)` }}>
+      style={{ color: c, background: `color-mix(in srgb, ${c} 12%, var(--color-tint))` }}>
       {d}
     </span>
   )
@@ -49,7 +51,7 @@ function QuestionRow({ q, cat, index }) {
           </span>
           {hascode && (
             <span className="hidden sm:inline text-[0.6rem] font-bold px-1.5 py-0.5
-              rounded bg-navy/6 text-navy/40 border border-line">
+              rounded bg-base2 text-muted border border-line">
               Code
             </span>
           )}
@@ -83,7 +85,7 @@ function QuestionRow({ q, cat, index }) {
       {/* Complexity — medium+ */}
       {q.timeComplexity && q.timeComplexity !== 'N/A' && (
         <span className="hidden md:block text-[0.65rem] font-mono font-bold
-          px-2 py-1 rounded bg-navy/5 text-navy/50 shrink-0 whitespace-nowrap">
+          px-2 py-1 rounded bg-base2 text-muted shrink-0 whitespace-nowrap">
           {q.timeComplexity}
         </span>
       )}
@@ -114,9 +116,39 @@ function QuestionRow({ q, cat, index }) {
 export default function InterviewCategoryPage() {
   const { categoryId } = useParams()
   const navigate       = useNavigate()
-  const [filter, setFilter] = useState('All')
+  const { isAdmin, isLoggedIn } = useAuth()
+  const [filter,    setFilter]    = useState('All')
+  const [questions, setQuestions] = useState([])
+  const [access,    setAccess]    = useState('free')   // 'free' | 'full'
+  const [loading,   setLoading]   = useState(true)
+  const [liveCat,   setLiveCat]   = useState(null)
 
-  const cat = getInterviewCategoryWithQuestions(categoryId)
+  // Merge static config (icon, color, desc) with live counts from API
+  const staticCat = INTERVIEW_CATEGORIES.find(c => c.id === categoryId)
+  const cat = staticCat ? {
+    ...staticCat,
+    totalQuestions: liveCat?.total_questions ?? staticCat.totalQuestions,
+    freeQuestions:  liveCat?.free_questions  ?? staticCat.freeQuestions,
+    desc:           liveCat?.description     ?? staticCat.desc,
+  } : null
+
+  useEffect(() => {
+    setLoading(true)
+    setQuestions([])
+    // Fetch live topic metadata + questions in parallel
+    Promise.all([
+      api.getInterviewQuestions(categoryId),
+      api.getInterviewTopics(),
+    ])
+      .then(([qRes, topicsRes]) => {
+        setQuestions(qRes.data.questions || [])
+        setAccess(qRes.data.access || 'free')
+        const topic = topicsRes.data.topics.find(t => t.slug === categoryId)
+        if (topic) setLiveCat(topic)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [categoryId])
 
   if (!cat) {
     return (
@@ -135,35 +167,32 @@ export default function InterviewCategoryPage() {
     )
   }
 
-  const filtered = filter === 'All'
-    ? cat.questions
-    : cat.questions.filter(q => q.difficulty === filter)
-
-  const countByDiff = d => cat.questions.filter(q => q.difficulty === d).length
-  const totalLive   = cat.questions.length
+  const filtered     = filter === 'All' ? questions : questions.filter(q => q.difficulty === filter)
+  const countByDiff  = d => questions.filter(q => q.difficulty === d).length
+  const totalLive    = questions.length
 
   return (
     <>
       <Navbar />
 
       {/* ── Dark hero ── */}
-      <div className="relative overflow-hidden bg-[#0c0c1e]">
+      <div className="relative overflow-hidden bg-navy">
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: `radial-gradient(ellipse 60% 100% at 10% 50%, color-mix(in srgb, ${cat.color} 18%, transparent) 0%, transparent 60%)` }}/>
 
-        <div className="relative max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12 py-10 lg:py-14">
+        <div className="relative max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16 py-10 lg:py-14">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-[0.77rem] mb-6">
-            <button className="text-white/35 hover:text-white/60 transition-colors font-semibold"
+            <button className="text-white/50 hover:text-white/80 transition-colors font-semibold"
               onClick={() => navigate('/interview')}>
               Interview
             </button>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-              className="text-white/20">
+              className="text-white/30">
               <path d="M9 18l6-6-6-6"/>
             </svg>
-            <span className="text-white/55 font-semibold">{cat.name}</span>
+            <span className="text-white/80 font-semibold">{cat.name}</span>
           </div>
 
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
@@ -174,7 +203,7 @@ export default function InterviewCategoryPage() {
                 {cat.name}
               </h1>
             </div>
-            <p className="text-[0.88rem] text-white/40 max-w-[520px] leading-relaxed mb-6">
+            <p className="text-[0.88rem] text-white/55 max-w-[520px] leading-relaxed mb-6">
               {cat.desc}
             </p>
 
@@ -192,7 +221,7 @@ export default function InterviewCategoryPage() {
                   </span>
                 </div>
               ))}
-              <span className="text-[0.72rem] text-white/25 font-semibold ml-2">
+              <span className="text-[0.72rem] text-white/50 font-semibold ml-2">
                 {totalLive} live · {cat.totalQuestions - totalLive}+ coming soon
               </span>
             </div>
@@ -202,7 +231,7 @@ export default function InterviewCategoryPage() {
 
       {/* ── Filter + table ── */}
       <section className="py-10 lg:py-14 bg-base">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
 
           {/* Filter + column headers */}
           <div className="bg-white border border-line rounded-2xl overflow-hidden">
@@ -272,18 +301,62 @@ export default function InterviewCategoryPage() {
             </AnimatePresence>
           </div>
 
-          {/* Coming soon notice */}
-          <motion.div className="mt-6 text-center py-8 px-8 bg-white
-            border-[1.5px] border-dashed border-line rounded-2xl"
-            initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}>
-            <p className="text-[0.85rem] text-muted">
-              <span className="font-bold text-navy">
-                {cat.totalQuestions - totalLive}+ more questions
-              </span>
-              {' '}being added weekly.
-            </p>
-          </motion.div>
+          {/* Purchase banner — shown when user has free access only */}
+          {access === 'free' && !isAdmin && (
+            <motion.div
+              className="mt-6 relative overflow-hidden rounded-2xl border border-accent/30
+                bg-gradient-to-br from-accent/5 to-[color-mix(in_srgb,#6366F1_6%,white)] p-6 sm:p-8"
+              initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-2xl shrink-0">
+                  🔒
+                </div>
+                <div className="flex-1">
+                  <p className="text-[0.68rem] font-bold uppercase tracking-[2px] text-accent mb-1">
+                    {cat.totalQuestions - totalLive > 0
+                      ? `${cat.totalQuestions - totalLive}+ more questions locked`
+                      : 'Full answers locked'}
+                  </p>
+                  <h3 className="text-[1rem] font-extrabold text-navy mb-1">
+                    Unlock all {cat.totalQuestions}+ questions with full answers
+                  </h3>
+                  <p className="text-[0.78rem] text-muted leading-relaxed">
+                    Get complete answers, hints, code solutions and complexity analysis.
+                    Valid for <strong className="text-navy">2 years</strong> from purchase.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 shrink-0">
+                  <button
+                    onClick={() => navigate(
+                      isLoggedIn
+                        ? `/checkout?type=interview&topicSlug=${categoryId}`
+                        : `/login?redirect=/checkout?type=interview%26topicSlug=${categoryId}`
+                    )}
+                    className="px-6 py-3 rounded-xl font-bold text-[0.9rem] text-white
+                      bg-gradient-to-br from-accent to-accent2
+                      shadow-[0_4px_16px_rgba(245,130,10,0.3)]
+                      hover:opacity-90 transition-opacity whitespace-nowrap">
+                    Unlock Pack — ₹99
+                  </button>
+                  <p className="text-[0.65rem] text-muted text-center">One-time · 7-day refund</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* All access — show count */}
+          {(access === 'full' || isAdmin) && cat.totalQuestions > totalLive && (
+            <motion.div className="mt-6 text-center py-6 px-8 bg-white
+              border border-dashed border-line rounded-2xl"
+              initial={{ opacity: 0 }} whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}>
+              <p className="text-[0.82rem] text-muted">
+                <span className="font-bold text-navy">{cat.totalQuestions - totalLive}+ more questions</span>
+                {' '}being added weekly.
+              </p>
+            </motion.div>
+          )}
         </div>
       </section>
 

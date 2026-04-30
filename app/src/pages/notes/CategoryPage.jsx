@@ -1,9 +1,25 @@
+﻿import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
 import Footer from '../../components/layout/Footer'
-import { getCategoryWithNotes } from '../../data/categories'
+import { getCategoryWithNotes, NOTES_DATA } from '../../data/categories'
 import { NoteIcon } from '../../data/icons'
+import { api } from '../../api/client'
+
+/* Merge live API data (counts, pricing) with static data (partTitles, crossLinks) */
+function mergeWithApi(staticNote, apiNote) {
+  if (!apiNote) return staticNote
+  return {
+    ...staticNote,
+    parts:    apiNote.parts_count    ?? staticNote.parts,
+    sections: apiNote.sections_count ?? staticNote.sections,
+    freeUpTo: apiNote.free_parts     ?? staticNote.freeUpTo,
+    price:    apiNote.price,
+    level:    apiNote.level          ?? staticNote.level,
+    tagline:  apiNote.tagline        ?? staticNote.tagline,
+  }
+}
 
 /* ─────────────────────────────────────────────────────
    NOTE CARD  — square, clean, matches category card style
@@ -31,7 +47,7 @@ function NoteCard({ note, categoryId, index }) {
         {/* Top row — icon + badges */}
         <div className="flex items-center justify-between gap-3">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: `color-mix(in srgb, ${note.color} 12%, #f5f7ff)` }}>
+            style={{ background: `color-mix(in srgb, ${note.color} 12%, var(--color-tint))` }}>
             <NoteIcon slug={note.slug} size={24} color={note.color}/>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
@@ -89,7 +105,7 @@ function NoteCard({ note, categoryId, index }) {
       {/* Footer */}
       {!note.soon && (
         <div className="px-5 py-3 border-t border-line flex items-center justify-between"
-          style={{ background: `color-mix(in srgb, ${note.color} 4%, #fff)` }}>
+          style={{ background: `color-mix(in srgb, ${note.color} 4%, var(--color-surface))` }}>
           <span className="text-[0.72rem] text-muted font-medium">
             {note.parts} parts · {note.sections} sections
           </span>
@@ -113,7 +129,25 @@ function NoteCard({ note, categoryId, index }) {
 export default function CategoryPage() {
   const { categoryId } = useParams()
   const navigate       = useNavigate()
-  const cat            = getCategoryWithNotes(categoryId)
+  const [apiNotes, setApiNotes] = useState({})
+
+  useEffect(() => {
+    api.getNotes(categoryId)
+      .then(({ data }) => {
+        const map = {}
+        data.notes.forEach(n => { map[n.slug] = n })
+        setApiNotes(map)
+      })
+      .catch(() => {})
+  }, [categoryId])
+
+  const staticCat = getCategoryWithNotes(categoryId)
+  const cat = staticCat
+    ? {
+        ...staticCat,
+        notes: staticCat.notes.map(n => mergeWithApi(n, apiNotes[n.slug])),
+      }
+    : null
 
   if (!cat) {
     return (
@@ -145,9 +179,9 @@ export default function CategoryPage() {
       <div className="border-b border-line py-10 lg:py-12"
         style={{
           background:        `color-mix(in srgb, ${cat.color} 5%, white)`,
-          borderBottomColor: `color-mix(in srgb, ${cat.color} 14%, #e2e5f0)`,
+          borderBottomColor: `color-mix(in srgb, ${cat.color} 14%, var(--color-line))`,
         }}>
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
 
           <motion.button
             className="inline-flex items-center gap-1.5 text-[0.8rem] font-bold
@@ -170,7 +204,7 @@ export default function CategoryPage() {
             <div className="w-[72px] h-[72px] rounded-[20px] flex items-center
               justify-center text-[2rem] shrink-0"
               style={{
-                background: `color-mix(in srgb, ${cat.color} 14%, #fff)`,
+                background: `color-mix(in srgb, ${cat.color} 14%, var(--color-surface))`,
                 boxShadow:  `0 4px 20px color-mix(in srgb, ${cat.color} 25%, transparent)`,
               }}>
               {cat.icon}
@@ -211,7 +245,7 @@ export default function CategoryPage() {
 
       {/* ── Notes grid ── */}
       <section className="py-12 lg:py-16">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {cat.notes.map((note, i) => (
               <NoteCard

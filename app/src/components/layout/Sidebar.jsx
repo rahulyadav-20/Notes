@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Sidebar — sticky note navigation.
  * Used by NotePage. Shows part list with active highlight.
  * Props: parts (string[]), activePart (number), onSelect (fn), noteColor (string), noteName (string), noteIcon (string)
@@ -9,7 +9,7 @@ export default function Sidebar({ parts, activePart, onSelect, noteColor, noteNa
     <aside className="sidebar-accent hidden lg:flex lg:flex-col lg:sticky lg:top-[68px] lg:h-[calc(100vh-68px)] lg:overflow-y-auto">
       <div className="flex items-center gap-3 px-5 pb-5 border-b border-line mb-3 shrink-0 pt-5">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
-          style={{ background: `color-mix(in srgb, ${noteColor} 12%, #f5f7ff)` }}>
+          style={{ background: `color-mix(in srgb, ${noteColor} 12%, var(--color-tint))` }}>
           {noteIcon}
         </div>
         <div>

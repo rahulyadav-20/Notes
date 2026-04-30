@@ -3,7 +3,8 @@ import { motion } from 'framer-motion'
 export default function Footer() {
   return (
     <motion.footer
-      className="bg-navy text-white/45 text-center px-5 sm:px-10 pt-12 pb-9 text-[0.82rem]"
+      className="text-white/45 text-center px-6 sm:px-10 lg:px-16 pt-12 pb-9 text-[0.82rem]"
+      style={{ background: '#0d0d1e' }}
       initial={{ opacity: 0 }} whileInView={{ opacity: 1 }}
       viewport={{ once: true }} transition={{ duration: 0.6 }}>
       <div className="max-w-[1300px] mx-auto flex flex-col items-center gap-3.5">

@@ -1,0 +1,15 @@
+{
+  "Servers": {
+    "1": {
+      "Name":            "learndb (Docker)",
+      "Group":           "Docker",
+      "Host":            "postgres",
+      "Port":            5432,
+      "MaintenanceDB":   "learndb",
+      "Username":        "postgres",
+      "Password":        "postgres",
+      "SSLMode":         "prefer",
+      "SavePassword":    true
+    }
+  }
+}

@@ -1,0 +1,28 @@
+export default [
+  {
+    slug: 'conflict-team',
+    title: 'Tell Me About a Conflict With a Teammate',
+    difficulty: 'Medium',
+    companies: ['Google', 'Amazon', 'Meta', 'Microsoft', 'Apple'],
+    tags: ['Behavioral', 'STAR', 'Leadership'],
+    timeComplexity: 'N/A', spaceComplexity: 'N/A',
+    acceptance: 'N/A',
+    description: 'Describe a situation where you had a significant disagreement with a colleague. How did you resolve it?',
+    answer: 'Use STAR format. Focus on: the technical/professional disagreement (not personal), how you listened to their perspective, data/evidence you used to make the case, how you reached consensus or escalated appropriately, and what you learned.',
+    hints: ['Amazon LP: Earn Trust & Have Backbone; Disagree and Commit', 'Keep it professional, not personal', 'Show you can disagree AND commit once a decision is made'],
+    isPremium: false,
+  },
+  {
+    slug: 'failed-project',
+    title: 'Tell Me About a Time You Failed',
+    difficulty: 'Easy',
+    companies: ['Amazon', 'Google', 'Meta', 'Apple'],
+    tags: ['Behavioral', 'STAR', 'Growth Mindset'],
+    timeComplexity: 'N/A', spaceComplexity: 'N/A',
+    acceptance: 'N/A',
+    description: 'Describe a project or situation where you failed or made a significant mistake.',
+    answer: "Own it fully — no blame-shifting. Structure: what happened → your specific role in the failure → immediate impact → what you did to recover → systemic changes you made to prevent recurrence. End on what you learned, not on the failure.",
+    hints: ['Interviewers want to see ownership and growth, not perfection', 'Pick something real — interviewers can tell when you fabricate', 'The recovery and learnings matter more than the failure itself'],
+    isPremium: false,
+  },
+]

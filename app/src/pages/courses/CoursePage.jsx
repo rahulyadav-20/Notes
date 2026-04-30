@@ -1,10 +1,11 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
 import Footer from '../../components/layout/Footer'
 import { getCourseBySlug } from '../../data/courses'
 import { NoteIcon } from '../../data/icons'
+import { useAuth } from '../../hooks/useAuth'
 
 /* ── Star Rating ── */
 function Stars({ rating }) {
@@ -127,8 +128,19 @@ function CurriculumAccordion({ modules, course }) {
 
 /* ── Enrollment Card (sticky sidebar) ── */
 function EnrollCard({ course }) {
-  const price   = course.freeModules >= course.modules ? 'Free' : '₹999'
-  const isPaid  = price !== 'Free'
+  const navigate  = useNavigate()
+  const { isAdmin, isLoggedIn, owns } = useAuth()
+  const isFree    = course.freeModules >= course.modules
+  // owns may be undefined if store hasn't hydrated — default to false
+  const enrolled  = isAdmin || (typeof owns === 'function' && owns('course', course.slug))
+  const price     = isFree ? 'Free' : '₹999'
+  const catId     = course.category?.id || 'courses'
+
+  function handleEnroll() {
+    if (isFree || enrolled) return
+    if (!isLoggedIn) { navigate(`/login?redirect=/courses/${catId}/${course.slug}`); return }
+    navigate(`/checkout?type=course&slug=${course.slug}`)
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-line overflow-hidden
@@ -161,31 +173,41 @@ function EnrollCard({ course }) {
 
       {/* Price + CTA */}
       <div className="p-5">
-        <div className="flex items-baseline gap-3 mb-4">
-          <span className="text-[2rem] font-black text-navy">{price}</span>
-          {isPaid && (
-            <>
-              <span className="text-[1rem] text-muted line-through">₹1,999</span>
-              <span className="text-[0.72rem] font-bold text-red-500 bg-red-50
-                border border-red-200 px-2 py-0.5 rounded-md">50% off</span>
-            </>
-          )}
-        </div>
+        {enrolled ? (
+          <div className="flex items-center gap-2 mb-4 p-3 rounded-xl bg-green-50 border border-green-200">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+            <span className="text-[0.82rem] font-bold text-green-700">You have access to this course</span>
+          </div>
+        ) : (
+          <div className="flex items-baseline gap-3 mb-4">
+            <span className="text-[2rem] font-black text-navy">{price}</span>
+            {!isFree && (
+              <>
+                <span className="text-[1rem] text-muted line-through">₹1,999</span>
+                <span className="text-[0.72rem] font-bold text-red-500 bg-red-50
+                  border border-red-200 px-2 py-0.5 rounded-md">50% off</span>
+              </>
+            )}
+          </div>
+        )}
 
-        <button className="w-full py-3.5 rounded-xl font-bold text-white text-[0.95rem]
-          transition-opacity hover:opacity-90 mb-3"
+        <button onClick={handleEnroll}
+          className="w-full py-3.5 rounded-xl font-bold text-white text-[0.95rem]
+            transition-opacity hover:opacity-90 mb-3"
           style={{ background: `linear-gradient(135deg, ${course.color}, color-mix(in srgb, ${course.color} 70%, #ec4899))` }}>
-          {isPaid ? 'Enroll Now' : 'Start Free'}
+          {enrolled ? 'Continue Learning →'
+            : isFree ? 'Start Free'
+            : 'Buy Course — ₹999'}
         </button>
 
-        {isPaid && (
+        {!isFree && !enrolled && (
           <button className="w-full py-3 rounded-xl font-bold text-navy text-[0.88rem]
             border-2 border-line hover:bg-base2 transition-colors mb-3">
             Try Free Preview
           </button>
         )}
 
-        {isPaid && (
+        {!isFree && !enrolled && (
           <p className="text-center text-[0.72rem] text-muted">30-day money-back guarantee</p>
         )}
 
@@ -197,7 +219,7 @@ function EnrollCard({ course }) {
               { icon: '▶', label: `${course.duration} on-demand video` },
               { icon: '📄', label: `${course.lessons} lessons across ${course.modules} modules` },
               { icon: '📱', label: 'Access on mobile & desktop' },
-              { icon: '♾️', label: 'Full lifetime access' },
+              { icon: '♾️', label: 'Full 2-year access' },
               { icon: '🏆', label: 'Certificate of completion' },
             ].map(item => (
               <div key={item.label} className="flex items-center gap-2.5">
@@ -261,7 +283,7 @@ export default function CoursePage() {
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: `radial-gradient(ellipse 50% 100% at 80% 50%, color-mix(in srgb, ${course.color} 15%, transparent) 0%, transparent 60%)` }}/>
 
-        <div className="relative max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12 py-10 lg:py-14">
+        <div className="relative max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16 py-10 lg:py-14">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-[0.77rem] mb-6 flex-wrap">
             <button className="text-white/40 hover:text-white/70 transition-colors font-semibold"
@@ -369,7 +391,7 @@ export default function CoursePage() {
 
       {/* ── Tabs ── */}
       <div className="bg-white border-b border-line sticky top-[68px] z-10">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
           <div className="flex items-center gap-0 overflow-x-auto">
             {tabs.map(tab => (
               <button key={tab}
@@ -387,7 +409,7 @@ export default function CoursePage() {
 
       {/* ── Main content ── */}
       <div className="py-10 lg:py-14 bg-base">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
           <div className="flex gap-10 items-start">
 
             {/* ── Left: tab content ── */}

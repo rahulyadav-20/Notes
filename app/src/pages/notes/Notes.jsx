@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
 import Footer from '../../components/layout/Footer'
 import { CATEGORIES, NOTES_DATA } from '../../data/categories'
 import { NoteIcon } from '../../data/icons'
+import { api } from '../../api/client'
 
 /* ─────────────────────────────────────────────────────
    CATEGORY CARD  — square, clean, description only
@@ -61,7 +62,7 @@ function CategoryCard({ cat, index }) {
         <div className="flex items-center justify-between gap-3">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center
             text-[1.6rem] shrink-0"
-            style={{ background: `color-mix(in srgb, ${cat.color} 12%, #f5f7ff)` }}>
+            style={{ background: `color-mix(in srgb, ${cat.color} 12%, var(--color-tint))` }}>
             {cat.icon}
           </div>
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
@@ -105,7 +106,7 @@ function CategoryCard({ cat, index }) {
 
       {/* Footer */}
       <div className="px-5 py-3 border-t border-line flex items-center justify-between"
-        style={{ background: `color-mix(in srgb, ${cat.color} 4%, #fff)` }}>
+        style={{ background: `color-mix(in srgb, ${cat.color} 4%, var(--color-surface))` }}>
         <span className="text-[0.72rem] text-muted font-medium">
           {cat.notes.length} topics
         </span>
@@ -138,7 +139,7 @@ function SearchCard({ note }) {
       <div className="flex items-start justify-between gap-2">
         {/* Real icon */}
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: `color-mix(in srgb, ${note.color} 12%, #f5f7ff)` }}>
+          style={{ background: `color-mix(in srgb, ${note.color} 12%, var(--color-tint))` }}>
           <NoteIcon slug={note.slug} size={20} color={note.color}/>
         </div>
         <span className="text-[0.64rem] font-semibold text-muted bg-base2
@@ -173,16 +174,32 @@ function SearchCard({ note }) {
 ───────────────────────────────────────────────────── */
 export default function Notes() {
   const [query, setQuery] = useState('')
+  const [apiMap, setApiMap] = useState({})
+
+  useEffect(() => {
+    api.getNotes()
+      .then(({ data }) => {
+        const map = {}
+        data.notes.forEach(n => { map[n.slug] = n })
+        setApiMap(map)
+      })
+      .catch(() => {})
+  }, [])
 
   const allNotes = CATEGORIES.flatMap(c =>
     c.notes
-      .map(slug => ({
-        ...NOTES_DATA[slug],
-        slug,
-        categoryId:   c.id,
-        categoryName: c.name,
-        categoryIcon: c.icon,
-      }))
+      .map(slug => {
+        const base = { ...NOTES_DATA[slug], slug, categoryId: c.id, categoryName: c.name, categoryIcon: c.icon }
+        const live = apiMap[slug]
+        return live ? {
+          ...base,
+          parts:    live.parts_count    ?? base.parts,
+          sections: live.sections_count ?? base.sections,
+          freeUpTo: live.free_parts     ?? base.freeUpTo,
+          level:    live.level          ?? base.level,
+          tagline:  live.tagline        ?? base.tagline,
+        } : base
+      })
       .filter(n => !n.soon)
   )
 
@@ -200,7 +217,7 @@ export default function Notes() {
 
       {/* ── Page header ── */}
       <div className="bg-white border-b border-line py-12 lg:py-14">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}>
@@ -222,7 +239,7 @@ export default function Notes() {
 
       {/* ── Body ── */}
       <section className="py-12 lg:py-16">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
 
           {/* Search + count row */}
           <motion.div
@@ -252,13 +269,13 @@ export default function Notes() {
               </svg>
               <input
                 className="border-none outline-none bg-transparent text-[0.88rem]
-                  text-navy font-[inherit] w-full placeholder:text-[#b0b8d0]"
+                  text-navy font-[inherit] w-full placeholder:text-[var(--color-muted)]"
                 placeholder="Search topics…"
                 value={query}
                 onChange={e => setQuery(e.target.value)}/>
               {query && (
                 <button onClick={() => setQuery('')}
-                  className="text-[#b0b8d0] hover:text-muted text-[1rem]
+                  className="text-[var(--color-muted)] hover:text-muted text-[1rem]
                     leading-none transition-colors shrink-0">
                   ✕
                 </button>

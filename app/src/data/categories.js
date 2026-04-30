@@ -10,7 +10,8 @@ export const LEVEL_COLOR = {
 export const NOTES_DATA = {
   kafka: {
     name: 'Apache Kafka', icon: '⚡', color: '#4A90D9',
-    parts: 6, freeUpTo: 2, sections: 22, level: 'Intermediate',
+    iconLetter: 'K',
+    parts: 6, freeUpTo: 2, sections: 14, level: 'Intermediate',
     tagline: 'Distributed event streaming — internals, replication & production ops',
     partTitles: [
       'Architecture & Core Concepts',
@@ -19,6 +20,34 @@ export const NOTES_DATA = {
       'Kafka Streams',
       'Schema Registry & Kafka Connect',
       'Production Operations & Tuning',
+    ],
+    partSections: [
+      [
+        { id: 's1',  title: 'Why Kafka Exists' },
+        { id: 's2',  title: 'Topics, Partitions & Segments' },
+        { id: 's3',  title: 'Brokers & Cluster Metadata' },
+      ],
+      [
+        { id: 's4',  title: 'Producer Internals' },
+        { id: 's5',  title: 'Consumer Groups & Offsets' },
+      ],
+      [
+        { id: 's6',  title: 'Replication Deep Dive' },
+        { id: 's7',  title: 'Delivery Semantics' },
+      ],
+      [
+        { id: 's8',  title: 'Streams Architecture' },
+        { id: 's9',  title: 'Windows & Joins' },
+      ],
+      [
+        { id: 's10', title: 'Schema Registry' },
+        { id: 's11', title: 'Kafka Connect' },
+      ],
+      [
+        { id: 's12', title: 'Performance Tuning' },
+        { id: 's13', title: 'Monitoring & Observability' },
+        { id: 's14', title: 'Operations Runbook' },
+      ],
     ],
   },
   spark: {

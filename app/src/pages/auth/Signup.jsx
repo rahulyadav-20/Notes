@@ -1,7 +1,9 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../../store/authStore'
+
+const IS_DEV = import.meta.env.DEV
 
 function GoogleIcon() {
   return (
@@ -30,13 +32,53 @@ const PERKS = [
   'Join the community — share interview experiences',
 ]
 
-export default function Signup() {
-  const navigate = useNavigate()
-  const signup   = useAuthStore(s => s.signup)
+/* ── Dev role picker modal ─────────────────────────── */
+function DevRolePicker({ onSelect, onClose }) {
+  return (
+    <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      onClick={onClose}>
+      <motion.div className="bg-white rounded-2xl p-6 w-full max-w-[320px] shadow-2xl"
+        initial={{ scale: 0.9, y: 10 }} animate={{ scale: 1, y: 0 }}
+        onClick={e => e.stopPropagation()}>
+        <p className="text-[0.65rem] font-bold uppercase tracking-[2px] text-amber-500 mb-2">
+          🛠 Dev Mode — Pick a role
+        </p>
+        <p className="text-[0.78rem] text-muted mb-4">
+          Signs you in as a test account (no Google credentials needed).
+        </p>
+        <div className="flex flex-col gap-2">
+          {[
+            { role: 'user',    label: 'Free User',    color: '#6b7280', email: 'dev.user@test.local'    },
+            { role: 'premium', label: 'Premium User', color: '#8B5CF6', email: 'dev.premium@test.local' },
+            { role: 'admin',   label: 'Admin',        color: '#EC4899', email: 'dev.admin@test.local'   },
+          ].map(({ role, label, color, email }) => (
+            <button key={role}
+              onClick={() => onSelect(role)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl border border-line
+                hover:bg-base2 transition-colors text-left">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }}/>
+              <div>
+                <div className="text-[0.82rem] font-bold text-navy">{label}</div>
+                <div className="text-[0.65rem] text-muted">{email}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
 
-  const [form, setForm]     = useState({ name: '', email: '', password: '', confirm: '' })
-  const [error, setError]   = useState('')
-  const [loading, setLoading] = useState(false)
+export default function Signup() {
+  const navigate       = useNavigate()
+  const signup         = useAuthStore(s => s.signup)
+  const devGoogleLogin = useAuthStore(s => s.devGoogleLogin)
+
+  const [form, setForm]           = useState({ name: '', email: '', password: '', confirm: '' })
+  const [error, setError]         = useState('')
+  const [loading, setLoading]     = useState(false)
+  const [showDevPicker, setDevPicker] = useState(false)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -44,11 +86,12 @@ export default function Signup() {
     if (!form.name.trim())  return 'Please enter your name.'
     if (!form.email.trim()) return 'Please enter your email.'
     if (!/\S+@\S+\.\S+/.test(form.email)) return 'Please enter a valid email.'
-    if (form.password.length < 6) return 'Password must be at least 6 characters.'
+    if (form.password.length < 8) return 'Password must be at least 8 characters.'
     if (form.password !== form.confirm) return 'Passwords do not match.'
     return null
   }
 
+  /* ── Email / password register ── */
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -56,10 +99,34 @@ export default function Signup() {
     if (err) { setError(err); return }
 
     setLoading(true)
-    await new Promise(r => setTimeout(r, 700))
-    signup({ name: form.name.trim(), email: form.email.trim().toLowerCase(), password: form.password })
+    const result = await signup({
+      name:     form.name.trim(),
+      email:    form.email.trim().toLowerCase(),
+      password: form.password,
+    })
     setLoading(false)
-    navigate('/dashboard')
+
+    if (result.success) navigate('/dashboard')
+    else setError(result.error)
+  }
+
+  /* ── Google / Dev Google ── */
+  const handleGoogle = () => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    if (googleClientId && !IS_DEV) {
+      window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`
+    } else {
+      setDevPicker(true)
+    }
+  }
+
+  const handleDevRole = async (role) => {
+    setDevPicker(false)
+    setLoading(true)
+    const result = await devGoogleLogin(role)
+    setLoading(false)
+    if (result.success) navigate('/dashboard')
+    else setError(result.error)
   }
 
   return (
@@ -125,11 +192,15 @@ export default function Signup() {
               <p className="text-[0.82rem] text-muted mb-6">Free forever · No credit card needed</p>
 
               {/* Google button */}
-              <button className="w-full flex items-center justify-center gap-3 px-4 py-3
-                rounded-xl border-2 border-line font-bold text-[0.88rem] text-navy
-                hover:bg-base2 hover:border-[#c5cae5] transition-all mb-5">
+              <button
+                onClick={handleGoogle}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3
+                  rounded-xl border-2 border-line font-bold text-[0.88rem] text-navy
+                  hover:bg-base2 hover:border-[var(--color-line-hover)] transition-all mb-5
+                  disabled:opacity-50 disabled:cursor-not-allowed">
                 <GoogleIcon/>
-                Sign up with Google
+                {IS_DEV ? 'Sign up with Google (dev)' : 'Sign up with Google'}
               </button>
 
               <div className="flex items-center gap-3 mb-5">
@@ -172,7 +243,7 @@ export default function Signup() {
                   <label className="text-[0.75rem] font-bold text-navy">Password</label>
                   <input
                     type="password"
-                    placeholder="Min 6 characters"
+                    placeholder="Min 8 characters"
                     value={form.password}
                     onChange={e => set('password', e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border border-line text-[0.88rem]
@@ -195,14 +266,17 @@ export default function Signup() {
                   />
                 </div>
 
-                {error && (
-                  <motion.div
-                    className="flex items-center gap-2 px-4 py-3 rounded-xl
-                      bg-red-50 border border-red-200 text-red-700 text-[0.8rem] font-semibold"
-                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
-                    ⚠️ {error}
-                  </motion.div>
-                )}
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      className="flex items-center gap-2 px-4 py-3 rounded-xl
+                        bg-red-50 border border-red-200 text-red-700 text-[0.8rem] font-semibold"
+                      initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}>
+                      ⚠️ {error}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <p className="text-[0.7rem] text-muted">
                   By signing up you agree to our{' '}
@@ -240,6 +314,16 @@ export default function Signup() {
           </motion.div>
         </div>
       </div>
+
+      {/* Dev role picker modal */}
+      <AnimatePresence>
+        {showDevPicker && (
+          <DevRolePicker
+            onSelect={handleDevRole}
+            onClose={() => setDevPicker(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

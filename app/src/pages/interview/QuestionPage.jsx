@@ -1,20 +1,16 @@
-import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
 import Footer from '../../components/layout/Footer'
-import {
-  getQuestionBySlug,
-  getInterviewCategoryWithQuestions,
-  DIFFICULTY_COLOR,
-} from '../../data/interview'
+import { loadQuestionBySlug, DIFFICULTY_COLOR } from '../../data/interview/index.js'
 
 /* ── Difficulty badge ── */
 function DiffBadge({ d }) {
   const c = DIFFICULTY_COLOR[d] || '#6b7280'
   return (
     <span className="text-[0.72rem] font-bold px-3 py-1 rounded-full"
-      style={{ color: c, background: `color-mix(in srgb, ${c} 13%, #f5f7ff)` }}>
+      style={{ color: c, background: `color-mix(in srgb, ${c} 13%, var(--color-tint))` }}>
       {d}
     </span>
   )
@@ -64,24 +60,22 @@ function ProblemPanel({ q, cat, hintsRevealed, setHintsRevealed }) {
       </div>
 
       {/* Complexity + tags */}
-      {(q.timeComplexity || q.spaceComplexity || q.tags?.length > 0) &&
-        q.timeComplexity !== 'N/A' && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {q.timeComplexity && q.timeComplexity !== 'N/A' && (
-              <ComplexityChip label="Time" value={q.timeComplexity}/>
-            )}
-            {q.spaceComplexity && q.spaceComplexity !== 'N/A' && (
-              <ComplexityChip label="Space" value={q.spaceComplexity}/>
-            )}
-            {q.tags?.map(t => (
-              <span key={t} className="text-[0.65rem] font-semibold px-2 py-1
-                rounded-md bg-base border border-line text-navy2">
-                {t}
-              </span>
-            ))}
-          </div>
-        )
-      }
+      {(q.timeComplexity && q.timeComplexity !== 'N/A') && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {q.timeComplexity && q.timeComplexity !== 'N/A' && (
+            <ComplexityChip label="Time" value={q.timeComplexity}/>
+          )}
+          {q.spaceComplexity && q.spaceComplexity !== 'N/A' && (
+            <ComplexityChip label="Space" value={q.spaceComplexity}/>
+          )}
+          {q.tags?.map(t => (
+            <span key={t} className="text-[0.65rem] font-semibold px-2 py-1
+              rounded-md bg-base border border-line text-navy2">
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Problem description */}
       <div className="bg-base rounded-xl p-5 border border-line">
@@ -134,7 +128,7 @@ function ProblemPanel({ q, cat, hintsRevealed, setHintsRevealed }) {
 
 /* ── Right panel: solution ── */
 function SolutionPanel({ q }) {
-  const [tab, setTab] = useState(q.code ? 'answer' : 'answer')
+  const [tab, setTab] = useState('answer')
 
   return (
     <div className="flex flex-col h-full">
@@ -173,13 +167,6 @@ function SolutionPanel({ q }) {
               <p className="text-[0.9rem] text-navy leading-[1.9] whitespace-pre-line">
                 {q.answer}
               </p>
-
-              {/* If no code tab, show code here */}
-              {!q.code && q.hints?.length === 0 && (
-                <div className="mt-6 p-4 bg-base rounded-xl border border-line text-center text-muted text-sm">
-                  This is a conceptual question — no code solution needed.
-                </div>
-              )}
             </div>
           )}
 
@@ -193,7 +180,7 @@ function SolutionPanel({ q }) {
                   <span className="w-3 h-3 rounded-full bg-[#28c840]"/>
                 </div>
                 <span className="text-[0.65rem] font-bold text-white/35 uppercase tracking-wider">
-                  Python
+                  Solution
                 </span>
               </div>
               {/* Code body */}
@@ -211,17 +198,54 @@ function SolutionPanel({ q }) {
   )
 }
 
+/* ── Loading skeleton ── */
+function LoadingSkeleton() {
+  return (
+    <div className="flex bg-base" style={{ minHeight: 'calc(100vh - 180px)' }}>
+      <div className="flex flex-col w-full lg:w-1/2 bg-white border-r border-line p-7 gap-4">
+        <div className="skeleton h-5 w-24 rounded-full"/>
+        <div className="skeleton h-8 w-4/5"/>
+        <div className="skeleton h-32 w-full rounded-xl mt-2"/>
+        <div className="skeleton h-28 w-full rounded-xl"/>
+      </div>
+      <div className="hidden lg:flex flex-col w-1/2 p-7 gap-4">
+        <div className="skeleton h-5 w-20"/>
+        {['w-full','w-4/5','w-full','w-3/4','w-full'].map((w, i) => (
+          <div key={i} className={`skeleton h-4 ${w}`}/>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /* ── Question Page ── */
 export default function QuestionPage() {
   const { categoryId, slug } = useParams()
   const navigate = useNavigate()
   const [hintsRevealed, setHintsRevealed] = useState(false)
   const [mobileView, setMobileView] = useState('problem') // 'problem' | 'solution'
+  const [data,    setData]    = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  const q   = getQuestionBySlug(slug)
-  const cat = getInterviewCategoryWithQuestions(categoryId)
+  useEffect(() => {
+    setLoading(true)
+    setData(null)
+    loadQuestionBySlug(categoryId, slug)
+      .then(d => { setData(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [categoryId, slug])
 
-  if (!q || !cat) {
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <LoadingSkeleton />
+        <Footer />
+      </>
+    )
+  }
+
+  if (!data) {
     return (
       <>
         <Navbar />
@@ -238,41 +262,39 @@ export default function QuestionPage() {
     )
   }
 
-  const qIndex = cat.questions.findIndex(x => x.slug === slug)
-  const prevQ  = qIndex > 0 ? cat.questions[qIndex - 1] : null
-  const nextQ  = qIndex < cat.questions.length - 1 ? cat.questions[qIndex + 1] : null
+  const { question: q, category: cat, index: qIndex, total, prevSlug, nextSlug, prevTitle, nextTitle } = data
 
   return (
     <>
       <Navbar />
 
       {/* ── Top bar ── */}
-      <div className="bg-[#0c0c1e] border-b border-white/8 sticky top-[68px] z-10">
+      <div className="bg-white border-b border-line sticky top-[68px] z-10">
         <div className="max-w-[1300px] mx-auto px-4 sm:px-8 lg:px-12
           flex items-center gap-3 h-12 overflow-x-auto">
 
           {/* Breadcrumb */}
-          <button className="text-[0.75rem] font-semibold text-white/30
-            hover:text-white/60 transition-colors shrink-0"
+          <button className="text-[0.75rem] font-semibold text-muted
+            hover:text-navy transition-colors shrink-0"
             onClick={() => navigate('/interview')}>
             Interview
           </button>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-            className="text-white/15 shrink-0">
+            className="text-muted/40 shrink-0">
             <path d="M9 18l6-6-6-6"/>
           </svg>
-          <button className="text-[0.75rem] font-semibold text-white/30
-            hover:text-white/60 transition-colors shrink-0"
+          <button className="text-[0.75rem] font-semibold text-muted
+            hover:text-navy transition-colors shrink-0"
             onClick={() => navigate(`/interview/${categoryId}`)}>
             {cat.name}
           </button>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-            className="text-white/15 shrink-0">
+            className="text-muted/40 shrink-0">
             <path d="M9 18l6-6-6-6"/>
           </svg>
-          <span className="text-[0.75rem] font-bold text-white/55 truncate">
+          <span className="text-[0.75rem] font-bold text-navy truncate">
             {q.title}
           </span>
 
@@ -283,27 +305,27 @@ export default function QuestionPage() {
           <div className="flex items-center gap-1 shrink-0">
             <button
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[0.72rem]
-                font-bold transition-colors ${prevQ
-                  ? 'text-white/40 hover:text-white/70 hover:bg-white/8'
-                  : 'text-white/15 cursor-default'}`}
-              disabled={!prevQ}
-              onClick={() => prevQ && navigate(`/interview/${categoryId}/${prevQ.slug}`)}>
+                font-bold transition-colors ${prevSlug
+                  ? 'text-muted hover:text-navy hover:bg-base2'
+                  : 'text-muted/30 cursor-default'}`}
+              disabled={!prevSlug}
+              onClick={() => prevSlug && navigate(`/interview/${categoryId}/${prevSlug}`)}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <path d="M19 12H5M12 19l-7-7 7-7"/>
               </svg>
               Prev
             </button>
-            <span className="text-[0.68rem] text-white/20 font-semibold">
-              {qIndex + 1}/{cat.questions.length}
+            <span className="text-[0.68rem] text-muted font-semibold">
+              {qIndex + 1}/{total}
             </span>
             <button
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[0.72rem]
-                font-bold transition-colors ${nextQ
-                  ? 'text-white/40 hover:text-white/70 hover:bg-white/8'
-                  : 'text-white/15 cursor-default'}`}
-              disabled={!nextQ}
-              onClick={() => nextQ && navigate(`/interview/${categoryId}/${nextQ.slug}`)}>
+                font-bold transition-colors ${nextSlug
+                  ? 'text-muted hover:text-navy hover:bg-base2'
+                  : 'text-muted/30 cursor-default'}`}
+              disabled={!nextSlug}
+              onClick={() => nextSlug && navigate(`/interview/${categoryId}/${nextSlug}`)}>
               Next
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -315,7 +337,7 @@ export default function QuestionPage() {
       </div>
 
       {/* ── Mobile tab switcher ── */}
-      <div className="lg:hidden bg-white border-b border-line sticky top-[68px+48px] z-9">
+      <div className="lg:hidden bg-white border-b border-line sticky top-[116px] z-9">
         <div className="flex">
           {['problem', 'solution'].map(v => (
             <button key={v}
@@ -364,11 +386,11 @@ export default function QuestionPage() {
       {/* ── Bottom nav (mobile) ── */}
       <div className="lg:hidden bg-white border-t border-line px-4 py-3
         flex items-center justify-between">
-        {prevQ ? (
+        {prevSlug ? (
           <button
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-line
               text-[0.8rem] font-bold text-navy hover:bg-base2 transition-colors"
-            onClick={() => navigate(`/interview/${categoryId}/${prevQ.slug}`)}>
+            onClick={() => navigate(`/interview/${categoryId}/${prevSlug}`)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M19 12H5M12 19l-7-7 7-7"/>
@@ -377,13 +399,13 @@ export default function QuestionPage() {
           </button>
         ) : <div/>}
         <span className="text-[0.72rem] text-muted font-semibold">
-          {qIndex + 1} / {cat.questions.length}
+          {qIndex + 1} / {total}
         </span>
-        {nextQ ? (
+        {nextSlug ? (
           <button
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-line
               text-[0.8rem] font-bold text-navy hover:bg-base2 transition-colors"
-            onClick={() => navigate(`/interview/${categoryId}/${nextQ.slug}`)}>
+            onClick={() => navigate(`/interview/${categoryId}/${nextSlug}`)}>
             Next
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">

@@ -1,11 +1,27 @@
+﻿import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
 import Footer from '../../components/layout/Footer'
 import {
-  getBlogPostBySlug, getRelatedPosts, POST_CATEGORIES,
-  COMPANY_COLORS, formatDate,
+  getBlogPostBySlug, POST_CATEGORIES, COMPANY_COLORS, formatDate,
 } from '../../data/blog'
+
+function normalize(p) {
+  if (!p) return null
+  return {
+    ...p,
+    category: p.category_id ?? p.category,
+    date:     p.published_at ?? p.date,
+    readTime: p.read_time    ?? p.readTime,
+    author: {
+      name:     p.author_name     ?? p.author?.name,
+      initials: p.author_initials ?? p.author?.initials,
+      color:    p.author_color    ?? p.author?.color,
+    },
+    content: typeof p.content === 'string' ? JSON.parse(p.content) : (p.content ?? []),
+  }
+}
 
 /* ── Category badge ── */
 function CatBadge({ categoryId }) {
@@ -14,7 +30,7 @@ function CatBadge({ categoryId }) {
   return (
     <span className="text-[0.68rem] font-bold px-3 py-1 rounded-full
       inline-flex items-center gap-1.5"
-      style={{ color: cat.color, background: `color-mix(in srgb, ${cat.color} 12%, #f5f7ff)` }}>
+      style={{ color: cat.color, background: `color-mix(in srgb, ${cat.color} 12%, var(--color-tint))` }}>
       {cat.emoji} {cat.label}
     </span>
   )
@@ -28,8 +44,8 @@ function CompanyBadge({ company }) {
     <span className="text-[0.7rem] font-bold px-2.5 py-1 rounded-lg border"
       style={{
         color,
-        borderColor: `color-mix(in srgb, ${color} 35%, #e2e5f0)`,
-        background:  `color-mix(in srgb, ${color} 8%, #fff)`,
+        borderColor: `color-mix(in srgb, ${color} 35%, var(--color-line))`,
+        background:  `color-mix(in srgb, ${color} 8%, var(--color-surface))`,
       }}>
       {company}
     </span>
@@ -150,14 +166,15 @@ function ShareCard({ title }) {
 
 /* ── Related post mini card ── */
 function RelatedCard({ post, navigate }) {
-  const cat = POST_CATEGORIES.find(c => c.id === post.category)
+  const categoryId = post.category_id ?? post.category
+  const cat = POST_CATEGORIES.find(c => c.id === categoryId)
   return (
     <div
       className="flex items-start gap-3 p-3 rounded-xl hover:bg-base2
         transition-colors cursor-pointer group"
       onClick={() => navigate(`/blog/${post.slug}`)}>
       <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0"
-        style={{ background: `color-mix(in srgb, ${cat?.color || '#6366F1'} 12%, #f5f7ff)` }}>
+        style={{ background: `color-mix(in srgb, ${cat?.color || '#6366F1'} 12%, var(--color-tint))` }}>
         {cat?.emoji}
       </div>
       <div className="flex-1 min-w-0">
@@ -165,7 +182,7 @@ function RelatedCard({ post, navigate }) {
           transition-colors leading-snug line-clamp-2">
           {post.title}
         </p>
-        <p className="text-[0.65rem] text-muted mt-0.5">{post.readTime}</p>
+        <p className="text-[0.65rem] text-muted mt-0.5">{post.read_time ?? post.readTime}</p>
       </div>
     </div>
   )
@@ -173,13 +190,38 @@ function RelatedCard({ post, navigate }) {
 
 /* ── Blog Post Page ── */
 export default function BlogPost() {
-  const { slug } = useParams()
+  const { slug }  = useParams()
   const navigate  = useNavigate()
+  const [post, setPost]       = useState(null)
+  const [related, setRelated] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
 
-  const post    = getBlogPostBySlug(slug)
-  const related = getRelatedPosts(slug, 3)
+  useEffect(() => {
+    setLoading(true)
+    getBlogPostBySlug(slug)
+      .then(({ post: raw, related: rawRelated }) => {
+        setPost(normalize(raw))
+        setRelated((rawRelated || []).map(normalize))
+      })
+      .catch(() => setError('Post not found.'))
+      .finally(() => setLoading(false))
+  }, [slug])
 
-  if (!post) {
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="max-w-[1300px] mx-auto px-6 py-20">
+          <div className="h-8 w-64 bg-base rounded animate-pulse mb-4"/>
+          <div className="h-64 bg-base rounded-2xl animate-pulse"/>
+        </div>
+        <Footer />
+      </>
+    )
+  }
+
+  if (error || !post) {
     return (
       <>
         <Navbar />
@@ -204,7 +246,7 @@ export default function BlogPost() {
 
       {/* ── Article header ── */}
       <div className="bg-white border-b border-line">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12 py-10 lg:py-14">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16 py-10 lg:py-14">
 
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-[0.78rem] mb-6">
@@ -214,7 +256,7 @@ export default function BlogPost() {
             </button>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-              className="text-[#b0b8d0]">
+              className="text-[var(--color-muted)]">
               <path d="M9 18l6-6-6-6"/>
             </svg>
             <span className="text-muted font-semibold">{cat?.label}</span>
@@ -278,7 +320,7 @@ export default function BlogPost() {
 
       {/* ── Article body + sidebar ── */}
       <section className="py-10 lg:py-14 bg-base">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
           <div className="flex gap-10 items-start">
 
             {/* ── Main article ── */}
@@ -348,7 +390,7 @@ export default function BlogPost() {
                   return (
                     <div key={r.slug}
                       className="bg-white border border-line rounded-xl p-4 cursor-pointer
-                        hover:border-[#c5cae5] transition-all"
+                        hover:border-[var(--color-line-hover)] transition-all"
                       onClick={() => navigate(`/blog/${r.slug}`)}>
                       <div className="flex items-center gap-2 mb-2">
                         <span>{rCat?.emoji}</span>

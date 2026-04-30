@@ -1,19 +1,19 @@
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
 import Footer from '../../components/layout/Footer'
 import { useAuth } from '../../hooks/useAuth'
 import { useAuthStore } from '../../store/authStore'
-import { INTERVIEW_CATEGORIES, QUESTIONS_DATA } from '../../data/interview'
 import { COURSE_CATEGORIES, COURSES_DATA } from '../../data/courses'
-import { BLOG_POSTS } from '../../data/blog'
+import { api } from '../../api/client'
 
 /* ── Stat card ── */
 function StatCard({ icon, label, value, color, sub }) {
   return (
     <div className="bg-white rounded-2xl border border-line p-5 flex items-start gap-4">
       <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[1.4rem] shrink-0"
-        style={{ background: `color-mix(in srgb, ${color} 12%, #f5f7ff)` }}>
+        style={{ background: `color-mix(in srgb, ${color} 12%, var(--color-tint))` }}>
         {icon}
       </div>
       <div>
@@ -48,7 +48,7 @@ function CourseQuickCard({ slug, course, navigate }) {
       bg-white ${course.soon ? 'opacity-60' : 'cursor-pointer hover:bg-base2 transition-colors'}`}
       onClick={() => !course.soon && cat && navigate(`/courses/${cat.id}/${slug}`)}>
       <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-[1.1rem]"
-        style={{ background: `color-mix(in srgb, ${course.color} 12%, #f5f7ff)` }}>
+        style={{ background: `color-mix(in srgb, ${course.color} 12%, var(--color-tint))` }}>
         {cat?.icon || '📚'}
       </div>
       <div className="flex-1 min-w-0">
@@ -64,43 +64,49 @@ function CourseQuickCard({ slug, course, navigate }) {
 }
 
 /* ── Question quick row ── */
-function QuestionQuickRow({ slug, q, navigate }) {
-  const cat = INTERVIEW_CATEGORIES.find(c => c.questions.includes(slug))
-  const c = { Easy: '#10B981', Medium: '#F59E0B', Hard: '#EF4444' }[q.difficulty] || '#6b7280'
+function QuestionQuickRow({ item, navigate }) {
+  const c = { Easy: '#10B981', Medium: '#F59E0B', Hard: '#EF4444' }[item.difficulty] || '#6b7280'
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl border border-line bg-white
       cursor-pointer hover:bg-base2 transition-colors"
-      onClick={() => cat && navigate(`/interview/${cat.id}/${slug}`)}>
+      onClick={() => navigate(`/interview/${item.categoryId}/${item.slug}`)}>
       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c }}/>
-      <span className="flex-1 text-[0.8rem] font-semibold text-navy truncate">{q.title}</span>
+      <span className="flex-1 text-[0.8rem] font-semibold text-navy truncate">{item.title}</span>
       <span className="text-[0.65rem] font-bold px-2 py-0.5 rounded-full shrink-0"
-        style={{ color: c, background: `color-mix(in srgb, ${c} 12%, #f5f7ff)` }}>
-        {q.difficulty}
+        style={{ color: c, background: `color-mix(in srgb, ${c} 12%, var(--color-tint))` }}>
+        {item.difficulty}
       </span>
     </div>
   )
 }
 
+/* ── Hardcoded featured questions for dashboard ── */
+const DASHBOARD_QUESTIONS = [
+  { slug: 'two-sum',         categoryId: 'dsa',           title: 'Two Sum',                   difficulty: 'Easy'   },
+  { slug: 'best-time-buy-sell', categoryId: 'dsa',        title: 'Best Time to Buy & Sell Stock', difficulty: 'Easy' },
+  { slug: 'design-url-shortener', categoryId: 'system-design', title: 'Design a URL Shortener', difficulty: 'Medium' },
+  { slug: 'nth-salary',      categoryId: 'sql',           title: 'Nth Highest Salary',         difficulty: 'Medium' },
+  { slug: 'conflict-team',   categoryId: 'behavioral',    title: 'Conflict With a Teammate',   difficulty: 'Medium' },
+]
+
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user, isPremium, plan } = useAuth()
+  const { user, isPremium, isAdmin } = useAuth()
   const logout   = useAuthStore(s => s.logout)
+  const [stats, setStats] = useState(null)
 
-  // Redirect if not logged in
-  if (!user) {
-    navigate('/login')
-    return null
-  }
+  useEffect(() => {
+    api.getPlatformStats().then(({ data }) => setStats(data)).catch(() => {})
+  }, [])
 
-  // Pick some featured content
-  const featuredCourses = Object.entries(COURSES_DATA).slice(0, 4)
-  const featuredQuestions = Object.entries(QUESTIONS_DATA)
-    .filter(([, q]) => q.difficulty === 'Easy' || q.difficulty === 'Medium')
-    .slice(0, 5)
+  if (!user) { navigate('/login'); return null }
 
-  const totalFreeNotes     = 7
-  const totalFreeQuestions = INTERVIEW_CATEGORIES.reduce((s, c) => s + c.freeQuestions, 0)
-  const totalFreeCourses   = Object.values(COURSES_DATA).filter(c => !c.soon).length
+  const featuredCourses    = Object.entries(COURSES_DATA).slice(0, 4)
+  const totalNotes         = stats?.notes.total      ?? '—'
+  const totalQuestions     = stats?.questions.total  ?? '—'
+  const totalFreeQuestions = stats?.questions.free   ?? '—'
+  const totalBlogs         = stats?.blog.total       ?? '—'
+  const totalCourses       = Object.values(COURSES_DATA).filter(c => !c.soon).length
 
   return (
     <>
@@ -108,7 +114,7 @@ export default function Dashboard() {
 
       {/* ── Welcome header ── */}
       <div className="bg-white border-b border-line py-8 lg:py-10">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
           <motion.div
             className="flex items-start justify-between gap-4 flex-wrap"
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -155,15 +161,15 @@ export default function Dashboard() {
 
       {/* ── Body ── */}
       <section className="py-8 lg:py-12 bg-base">
-        <div className="max-w-[1300px] mx-auto px-5 sm:px-8 lg:px-12">
+        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
 
           {/* Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
             {[
-              { icon: '📝', label: 'Notes available',      value: totalFreeNotes,        color: '#4A90D9',  sub: isPremium ? 'All unlocked' : `${totalFreeNotes} free` },
-              { icon: '🎓', label: 'Courses available',    value: totalFreeCourses,      color: '#f5820a',  sub: isPremium ? 'All unlocked' : 'Free access' },
-              { icon: '🎯', label: 'Interview questions',  value: `${totalFreeQuestions}+`, color: '#6366F1', sub: `Across 6 topics` },
-              { icon: '📖', label: 'Blog articles',        value: BLOG_POSTS.length,     color: '#10B981',  sub: 'Free forever' },
+              { icon: '📝', label: 'Deep-dive notes',      value: totalNotes,             color: '#4A90D9', sub: isPremium || isAdmin ? 'All unlocked' : '2 parts free each' },
+              { icon: '🎓', label: 'Courses',              value: totalCourses,           color: '#f5820a', sub: isPremium || isAdmin ? 'Full access'  : 'Free previews'    },
+              { icon: '🎯', label: 'Interview questions',  value: totalQuestions,         color: '#6366F1', sub: `${totalFreeQuestions} free · rest premium`                 },
+              { icon: '📖', label: 'Blog articles',        value: totalBlogs,             color: '#10B981', sub: 'Free forever'                                              },
             ].map((s, i) => (
               <motion.div key={s.label}
                 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -194,15 +200,15 @@ export default function Dashboard() {
               transition={{ delay: 0.2 }}>
               <SectionTitle title="Practice Questions" action="See all" onAction={() => navigate('/interview')}/>
               <div className="flex flex-col gap-2.5">
-                {featuredQuestions.map(([slug, q]) => (
-                  <QuestionQuickRow key={slug} slug={slug} q={q} navigate={navigate}/>
+                {DASHBOARD_QUESTIONS.map(item => (
+                  <QuestionQuickRow key={item.slug} item={item} navigate={navigate}/>
                 ))}
               </div>
             </motion.div>
           </div>
 
-          {/* ── Premium upsell (free users only) ── */}
-          {!isPremium && (
+          {/* ── Premium upsell (free users only — not for admin/premium) ── */}
+          {!isPremium && !isAdmin && (
             <motion.div
               className="mt-10 bg-[#0f0f23] rounded-2xl p-6 sm:p-8 relative overflow-hidden"
               initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
@@ -250,11 +256,11 @@ export default function Dashboard() {
             ].map(l => (
               <button key={l.label}
                 className="flex items-center gap-3 p-4 rounded-xl bg-white
-                  border border-line hover:border-[#c5cae5] hover:shadow-sm
+                  border border-line hover:border-[var(--color-line-hover)] hover:shadow-sm
                   transition-all cursor-pointer text-left"
                 onClick={() => navigate(l.path)}>
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0"
-                  style={{ background: `color-mix(in srgb, ${l.color} 12%, #f5f7ff)` }}>
+                  style={{ background: `color-mix(in srgb, ${l.color} 12%, var(--color-tint))` }}>
                   {l.icon}
                 </div>
                 <span className="text-[0.85rem] font-bold text-navy">{l.label}</span>
@@ -264,8 +270,10 @@ export default function Dashboard() {
 
           {/* ── Account actions ── */}
           <div className="mt-8 flex items-center gap-3 flex-wrap">
-            <button className="px-4 py-2 rounded-xl text-[0.8rem] font-bold text-muted
-              border border-line hover:bg-base2 transition-colors">
+            <button
+              className="px-4 py-2 rounded-xl text-[0.8rem] font-bold text-muted
+                border border-line hover:bg-base2 transition-colors"
+              onClick={() => navigate('/settings')}>
               ⚙️ Account Settings
             </button>
             <button
