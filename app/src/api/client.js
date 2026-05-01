@@ -104,6 +104,7 @@ export const api = {
   getCourse:            (slug)         => client.get(`/courses/${slug}`),
   getLesson:            (slug, id)     => client.get(`/courses/${slug}/lessons/${id}`),
   markLessonComplete:   (slug, id)     => client.post(`/courses/${slug}/lessons/${id}/complete`),
+  unmarkLessonComplete: (slug, id)     => client.delete(`/courses/${slug}/lessons/${id}/complete`),
   getMyProgress:        ()             => client.get('/courses/my-progress'),
 
   // Payments
@@ -114,9 +115,12 @@ export const api = {
   myPurchases:    ()     => client.get('/payments/my-purchases'),
 
   // Notes
-  getNotes:       (category)     => client.get('/notes', { params: { category } }),
-  getNote:        (slug)         => client.get(`/notes/${slug}`),
-  getNotePart:    (slug, idx)    => client.get(`/notes/${slug}/parts/${idx}`),
+  getNotes:           (category) => client.get('/notes', { params: { category } }),
+  getNote:            (slug)     => client.get(`/notes/${slug}`),
+  getNotePart:        (slug, idx)=> client.get(`/notes/${slug}/parts/${idx}`),
+  getNoteProgress:    (slug)     => client.get(`/notes/${slug}/progress`),
+  resetNoteProgress:  (slug)     => client.delete(`/notes/${slug}/progress`),
+  getMyNoteProgress:  ()         => client.get('/notes/my-progress'),
 
   // Search
   search: (q) => client.get('/search', { params: { q } }),

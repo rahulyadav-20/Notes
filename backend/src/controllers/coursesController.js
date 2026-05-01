@@ -225,6 +225,46 @@ export async function markLessonComplete(req, res, next) {
 }
 
 /* ─────────────────────────────────────────────────────
+   DELETE /api/v1/courses/:slug/lessons/:lessonId/complete
+   Unmark a lesson as completed (toggle off).
+───────────────────────────────────────────────────── */
+export async function unmarkLessonComplete(req, res, next) {
+  try {
+    const { slug, lessonId } = req.params
+
+    const courseResult = await query(
+      'SELECT id FROM courses WHERE slug = $1 AND is_published = TRUE', [slug]
+    )
+    const course = courseResult.rows[0]
+    if (!course) return res.status(404).json({ error: 'Course not found.' })
+
+    await query(
+      `DELETE FROM user_lesson_progress
+       WHERE user_id = $1 AND lesson_id = $2 AND course_id = $3`,
+      [req.user.id, lessonId, course.id]
+    )
+
+    const [progressResult, totalResult] = await Promise.all([
+      query('SELECT COUNT(*) FROM user_lesson_progress WHERE user_id=$1 AND course_id=$2', [req.user.id, course.id]),
+      query(`SELECT COUNT(*) FROM lessons l JOIN sections s ON s.id=l.section_id WHERE s.course_id=$1`, [course.id]),
+    ])
+    const completedCount = parseInt(progressResult.rows[0].count)
+    const totalLessons   = parseInt(totalResult.rows[0].count)
+
+    return res.json({
+      message: 'Lesson unmarked.',
+      progress: {
+        completedCount,
+        totalLessons,
+        percentage: totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0,
+      },
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/* ─────────────────────────────────────────────────────
    GET /api/v1/courses/my-progress
    Returns progress summary for all enrolled courses.
    Keyed by course slug.

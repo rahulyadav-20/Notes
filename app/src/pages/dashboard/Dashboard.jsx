@@ -122,12 +122,16 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { user, isPremium, isAdmin, purchases, purchasesLoading } = useAuth()
   const logout = useAuthStore(s => s.logout)
-  const [bookmarks, setBookmarks] = useState([])
+  const [bookmarks,     setBookmarks]     = useState([])
+  const [noteProgress,  setNoteProgress]  = useState([])
 
   useEffect(() => {
     if (!user) return
     api.getBookmarks()
       .then(({ data }) => setBookmarks(data.bookmarks ?? []))
+      .catch(() => {})
+    api.getMyNoteProgress()
+      .then(({ data }) => setNoteProgress(data.progress || []))
       .catch(() => {})
   }, [user])
 
@@ -276,6 +280,66 @@ export default function Dashboard() {
                   shadow-[0_4px_16px_rgba(245,130,10,0.3)] hover:opacity-90 transition-opacity">
                 Browse & Buy →
               </button>
+            </motion.div>
+          )}
+
+          {/* ── Continue Reading ── */}
+          {noteProgress.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.04 }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">📖</span>
+                  <h2 className="text-[0.9rem] font-extrabold text-navy">Continue Reading</h2>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                {noteProgress.slice(0, 4).map(p => {
+                  const pct = p.totalParts > 0
+                    ? Math.round((p.viewedParts.length / p.totalParts) * 100) : 0
+                  const nextPart = p.lastPart + 1
+                  const finished = p.viewedParts.length >= p.totalParts && p.totalParts > 0
+                  return (
+                    <div key={p.slug}
+                      className="flex items-center gap-3 p-3 rounded-xl border border-line bg-white
+                        hover:border-[var(--color-line-hover)] transition-colors">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0"
+                        style={{ background: `color-mix(in srgb, ${p.color} 12%, var(--color-tint))` }}>
+                        {p.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[0.82rem] font-bold text-navy truncate">{p.title}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 h-1 bg-base2 rounded-full overflow-hidden max-w-[80px]">
+                            <div className="h-full rounded-full bg-green-400 transition-all"
+                              style={{ width: `${pct}%` }}/>
+                          </div>
+                          <span className="text-[0.62rem] text-muted">
+                            {p.viewedParts.length}/{p.totalParts} parts
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          await api.resetNoteProgress(p.slug)
+                          setNoteProgress(prev => prev.filter(x => x.slug !== p.slug))
+                        }}
+                        title="Reset reading progress"
+                        className="text-[0.6rem] text-muted/50 hover:text-red-400 transition-colors shrink-0 px-1">
+                        ↺
+                      </button>
+                      <button
+                        onClick={() => navigate(`/notes/${p.category}/${p.slug}`)}
+                        className="text-[0.72rem] font-bold px-3 py-1.5 rounded-lg text-white
+                          hover:opacity-90 transition-opacity shrink-0"
+                        style={{ background: finished ? '#10B981' : p.color }}>
+                        {finished ? '✓ Done' : `Part ${nextPart} →`}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
             </motion.div>
           )}
 

@@ -73,7 +73,7 @@ function PurchaseGate({ navigate, slug, price }) {
 /* ─────────────────────────────────────────────────────
    DARK SIDEBAR
 ───────────────────────────────────────────────────── */
-function NoteSidebar({ note, activePart, activeSection, onSectionClick, mobileOpen, onClose }) {
+function NoteSidebar({ note, activePart, activeSection, viewedParts, onSectionClick, mobileOpen, onClose }) {
   const partSections = note.partSections ?? []
 
   // Flatten all sections with global sequential number
@@ -130,10 +130,17 @@ function NoteSidebar({ note, activePart, activeSection, onSectionClick, mobileOp
             return (
               <div key={pi} className="mb-1">
                 {/* Part group label */}
-                <div className="px-3 pt-3 pb-2">
+                <div className="px-3 pt-3 pb-2 flex items-center gap-2">
                   <span className="text-[0.56rem] font-800 tracking-[2px] uppercase text-white/30">
                     Part {ROMAN[pi]} — {note.partTitles[pi]}
                   </span>
+                  {viewedParts?.includes(pi) && (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                      stroke="#4ade80" strokeWidth="3" strokeLinecap="round"
+                      className="shrink-0">
+                      <path d="M20 6L9 17l-5-5"/>
+                    </svg>
+                  )}
                 </div>
 
                 {/* Section items */}
@@ -225,6 +232,7 @@ export default function NotePage() {
   const [useStaticFallback, setUseStaticFallback] = useState(false)
   const [purchaseGated, setPurchaseGated] = useState(false)
   const [notePrice, setNotePrice]         = useState(null)
+  const [viewedParts, setViewedParts]     = useState([])
 
   const note = getNoteWithCategories(slug)
   const cat  = CATEGORIES.find(c => c.id === categoryId)
@@ -278,6 +286,21 @@ export default function NotePage() {
         setPartLoading(false)
       })
   }, [slug, activePart, owns])
+
+  /* ── Fetch which parts user has already read ── */
+  useEffect(() => {
+    if (!isLoggedIn || !slug) return
+    api.getNoteProgress(slug)
+      .then(({ data }) => setViewedParts(data.viewedParts || []))
+      .catch(() => {})
+  }, [isLoggedIn, slug])
+
+  /* ── When a part loads successfully, add it to viewedParts optimistically ── */
+  useEffect(() => {
+    if (partBlocks && isLoggedIn) {
+      setViewedParts(prev => prev.includes(activePart) ? prev : [...prev, activePart])
+    }
+  }, [partBlocks, activePart, isLoggedIn])
 
   /* ── Scroll to section after part loads ── */
   useEffect(() => {
@@ -399,6 +422,7 @@ export default function NotePage() {
           note={note}
           activePart={activePart}
           activeSection={activeSection}
+          viewedParts={viewedParts}
           onSectionClick={handleSectionClick}
           mobileOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}

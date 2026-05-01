@@ -36,7 +36,7 @@ function Check({ color }) {
 }
 
 /* ── Curriculum Accordion ── */
-function CurriculumAccordion({ sections, course, courseSlug, isEnrolled, onComplete }) {
+function CurriculumAccordion({ sections, course, courseSlug, isEnrolled, onToggle }) {
   const [open, setOpen] = useState(0)
 
   // Fallback to static module titles if no DB sections yet
@@ -130,27 +130,32 @@ function CurriculumAccordion({ sections, course, courseSlug, isEnrolled, onCompl
                           </span>
                         )}
 
-                        {/* Badge / mark-complete */}
+                        {/* Badge / toggle complete */}
                         {lesson.is_preview ? (
                           <span className="text-[0.62rem] font-bold text-green-600
                             bg-green-50 border border-green-200 px-2 py-0.5 rounded-md shrink-0">
-                            Free preview
+                            Free
                           </span>
-                        ) : isEnrolled && !lesson.completed ? (
+                        ) : isEnrolled ? (
                           <button
-                            onClick={(e) => { e.stopPropagation(); onComplete(lesson.id) }}
-                            className="text-[0.62rem] font-bold text-accent hover:opacity-70
-                              transition-opacity shrink-0 whitespace-nowrap">
-                            Mark done
+                            title={lesson.completed ? 'Click to unmark' : 'Mark as done'}
+                            onClick={(e) => { e.stopPropagation(); onToggle(lesson.id, lesson.completed) }}
+                            className={`text-[0.62rem] font-bold shrink-0 whitespace-nowrap
+                              px-2 py-0.5 rounded-md border transition-all
+                              ${lesson.completed
+                                ? 'bg-green-50 text-green-600 border-green-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200'
+                                : 'text-accent border-transparent hover:bg-accent/10 border hover:border-accent/30'
+                              }`}>
+                            {lesson.completed ? '✓ Done' : 'Mark done'}
                           </button>
-                        ) : !isEnrolled ? (
+                        ) : (
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" strokeWidth="2" strokeLinecap="round"
                             className="text-muted/50 shrink-0">
                             <rect x="3" y="11" width="18" height="11" rx="2"/>
                             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                           </svg>
-                        ) : null}
+                        )}
                       </div>
                     ))}
                   </div>
@@ -356,16 +361,17 @@ export default function CoursePage() {
       }
     : staticCourse
 
-  const handleMarkComplete = useCallback(async (lessonId) => {
+  const handleToggleLesson = useCallback(async (lessonId, isCompleted) => {
     try {
-      const { data } = await api.markLessonComplete(slug, lessonId)
-      // Optimistically mark the lesson done and update progress
+      const { data } = isCompleted
+        ? await api.unmarkLessonComplete(slug, lessonId)
+        : await api.markLessonComplete(slug, lessonId)
       setApiData(prev => {
         if (!prev) return prev
         const sections = prev.sections.map(s => ({
           ...s,
           lessons: s.lessons.map(l =>
-            l.id === lessonId ? { ...l, completed: true } : l
+            l.id === lessonId ? { ...l, completed: !isCompleted } : l
           ),
         }))
         return { ...prev, sections, progress: { ...prev.progress, ...data.progress } }
@@ -632,7 +638,7 @@ export default function CoursePage() {
                         course={course}
                         courseSlug={slug}
                         isEnrolled={apiData?.isEnrolled || false}
-                        onComplete={handleMarkComplete}
+                        onToggle={handleToggleLesson}
                       />
                     </div>
                   )}

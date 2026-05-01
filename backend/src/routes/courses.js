@@ -16,7 +16,10 @@ router.get('/:slug', optionalAuth, ctrl.getCourse)
 /* ── GET /api/v1/courses/:slug/lessons/:lessonId ── premium/enrolled */
 router.get('/:slug/lessons/:lessonId', requireAuth, ctrl.getLesson)
 
-/* ── POST /api/v1/courses/:slug/lessons/:lessonId/complete ── requires auth */
-router.post('/:slug/lessons/:lessonId/complete', requireAuth, ctrl.markLessonComplete)
+/* ── POST   /api/v1/courses/:slug/lessons/:lessonId/complete ── mark done */
+router.post('/:slug/lessons/:lessonId/complete',   requireAuth, ctrl.markLessonComplete)
+
+/* ── DELETE /api/v1/courses/:slug/lessons/:lessonId/complete ── unmark */
+router.delete('/:slug/lessons/:lessonId/complete', requireAuth, ctrl.unmarkLessonComplete)
 
 export default router

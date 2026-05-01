@@ -108,7 +108,91 @@ export async function getNotePart(req, res, next) {
       return res.status(404).json({ error: 'Part not found.' })
     }
 
+    // Record read progress non-blocking (don't await — never delay the response)
+    if (req.user) {
+      query(
+        `INSERT INTO user_note_progress (user_id, note_slug, part_index)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, note_slug, part_index) DO UPDATE SET viewed_at = NOW()`,
+        [req.user.id, slug, partIndex]
+      ).catch(() => {})
+    }
+
     return res.json({ part: result.rows[0] })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   GET /api/v1/notes/:slug/progress
+   Returns which part indices the current user has read.
+───────────────────────────────────────────────────── */
+export async function getNoteProgress(req, res, next) {
+  try {
+    const { slug } = req.params
+    const result = await query(
+      `SELECT part_index FROM user_note_progress
+       WHERE user_id = $1 AND note_slug = $2
+       ORDER BY part_index`,
+      [req.user.id, slug]
+    )
+    return res.json({ viewedParts: result.rows.map(r => r.part_index) })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   DELETE /api/v1/notes/:slug/progress
+   Resets read progress for a note (user-initiated).
+───────────────────────────────────────────────────── */
+export async function resetNoteProgress(req, res, next) {
+  try {
+    const { slug } = req.params
+    await query(
+      'DELETE FROM user_note_progress WHERE user_id = $1 AND note_slug = $2',
+      [req.user.id, slug]
+    )
+    return res.json({ message: 'Progress reset.' })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   GET /api/v1/notes/my-progress
+   Returns recent reading activity for the dashboard.
+───────────────────────────────────────────────────── */
+export async function getMyNoteProgress(req, res, next) {
+  try {
+    const result = await query(
+      `SELECT
+         np.note_slug,
+         MAX(np.part_index)                                    AS last_part,
+         MAX(np.viewed_at)                                     AS last_viewed,
+         ARRAY_AGG(DISTINCT np.part_index ORDER BY np.part_index) AS viewed_parts,
+         nm.title, nm.icon, nm.color, nm.category, nm.parts_count
+       FROM user_note_progress np
+       JOIN notes_metadata nm ON nm.slug = np.note_slug
+       WHERE np.user_id = $1
+       GROUP BY np.note_slug, nm.title, nm.icon, nm.color, nm.category, nm.parts_count
+       ORDER BY last_viewed DESC
+       LIMIT 6`,
+      [req.user.id]
+    )
+    return res.json({
+      progress: result.rows.map(r => ({
+        slug:        r.note_slug,
+        category:    r.category,
+        title:       r.title,
+        icon:        r.icon,
+        color:       r.color,
+        lastPart:    parseInt(r.last_part),
+        viewedParts: r.viewed_parts.map(Number),
+        totalParts:  parseInt(r.parts_count) || 0,
+      })),
+    })
   } catch (err) {
     next(err)
   }

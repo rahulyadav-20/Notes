@@ -107,6 +107,18 @@ CREATE TABLE IF NOT EXISTS lessons (
 
 CREATE INDEX IF NOT EXISTS idx_lessons_section ON lessons(section_id);
 
+-- ── NOTE READ PROGRESS ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_note_progress (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  note_slug   TEXT NOT NULL,
+  part_index  INTEGER NOT NULL,
+  viewed_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, note_slug, part_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_note_progress_user ON user_note_progress(user_id, note_slug);
+
 -- ── LESSON PROGRESS ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS user_lesson_progress (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
