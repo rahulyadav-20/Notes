@@ -21,6 +21,7 @@ import adminRoutes     from './src/routes/admin.js'
 import blogRoutes      from './src/routes/blog.js'
 import interviewRoutes from './src/routes/interview.js'
 import trackRoutes     from './src/routes/track.js'
+import searchRoutes    from './src/routes/search.js'
 import { getPlatformStats } from './src/controllers/statsController.js'
 
 const app  = express()
@@ -83,6 +84,7 @@ app.use('/api/v1/admin',     adminRoutes)
 app.use('/api/v1/blog',      blogRoutes)
 app.use('/api/v1/interview', interviewRoutes)
 app.use('/api/v1/track',     trackRoutes)
+app.use('/api/v1/search',   searchRoutes)
 app.get('/api/v1/stats',    getPlatformStats)
 
 /* ─────────────────────────────────────────────────────

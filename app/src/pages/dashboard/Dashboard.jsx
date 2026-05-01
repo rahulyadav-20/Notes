@@ -1,290 +1,396 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import Navbar from '../../components/layout/Navbar'
-import Footer from '../../components/layout/Footer'
-import { useAuth } from '../../hooks/useAuth'
+import Navbar    from '../../components/layout/Navbar'
+import Footer    from '../../components/layout/Footer'
+import { useAuth }      from '../../hooks/useAuth'
 import { useAuthStore } from '../../store/authStore'
-import { COURSE_CATEGORIES, COURSES_DATA } from '../../data/courses'
-import { api } from '../../api/client'
+import { COURSES_DATA } from '../../data/courses'
+import { NOTES_DATA }   from '../../data/categories'
+import { api }          from '../../api/client'
 
-/* ── Stat card ── */
-function StatCard({ icon, label, value, color, sub }) {
+/* ── Static maps ── */
+const NOTE_CATEGORY = {
+  kafka: 'data-engineer', spark: 'data-engineer', flink: 'data-engineer',
+  druid: 'data-engineer', gcp: 'data-engineer', 'data-modeling': 'data-engineer',
+  sql: 'data-engineer', 'machine-learning': 'data-science', langchain: 'ai',
+  kubernetes: 'devops', react: 'frontend', javascript: 'frontend',
+}
+
+const TOPIC_META = {
+  dsa:               { title: 'DSA & Algorithms',   icon: '📐', color: '#EC4899' },
+  'system-design':   { title: 'System Design',      icon: '🏛️', color: '#6366F1' },
+  'data-engineering':{ title: 'Data Engineering',   icon: '🗄️', color: '#4A90D9' },
+  sql:               { title: 'SQL',                icon: '🗃️', color: '#336791' },
+  'machine-learning':{ title: 'Machine Learning',   icon: '🤖', color: '#8B5CF6' },
+  behavioral:        { title: 'Behavioural',        icon: '💬', color: '#10B981' },
+}
+
+/* ── Helpers ── */
+function formatExpiry(expiresAt) {
+  if (!expiresAt) return 'Lifetime access'
+  const diff = new Date(expiresAt) - Date.now()
+  if (diff < 0) return 'Expired'
+  const days = Math.floor(diff / 86_400_000)
+  if (days < 30)  return `${days}d left`
+  if (days < 365) return `${Math.floor(days / 30)}mo left`
+  const y = Math.floor(days / 365)
+  const m = Math.floor((days % 365) / 30)
+  return m ? `${y}y ${m}mo left` : `${y}y left`
+}
+
+function memberSince(createdAt) {
+  if (!createdAt) return ''
+  return new Date(createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+}
+
+/* ── Owned item row ── */
+function OwnedRow({ icon, color, title, sub, expiry, expired, onClick, btnLabel }) {
   return (
-    <div className="bg-white rounded-2xl border border-line p-5 flex items-start gap-4">
-      <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[1.4rem] shrink-0"
+    <div className="flex items-center gap-3 p-3 rounded-xl border border-line bg-white
+      hover:border-[var(--color-line-hover)] transition-colors">
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0"
         style={{ background: `color-mix(in srgb, ${color} 12%, var(--color-tint))` }}>
         {icon}
       </div>
-      <div>
-        <div className="text-[1.6rem] font-black text-navy leading-none">{value}</div>
-        <div className="text-[0.72rem] font-bold text-muted mt-0.5">{label}</div>
-        {sub && <div className="text-[0.65rem] text-muted/60 mt-0.5">{sub}</div>}
-      </div>
-    </div>
-  )
-}
-
-/* ── Section header ── */
-function SectionTitle({ title, action, onAction }) {
-  return (
-    <div className="flex items-center justify-between mb-4">
-      <h2 className="text-[1rem] font-extrabold text-navy">{title}</h2>
-      {action && (
-        <button className="text-[0.75rem] font-bold text-accent hover:opacity-70 transition-opacity"
-          onClick={onAction}>
-          {action} →
-        </button>
-      )}
-    </div>
-  )
-}
-
-/* ── Course quick card ── */
-function CourseQuickCard({ slug, course, navigate }) {
-  const cat = COURSE_CATEGORIES.find(c => c.courses.includes(slug))
-  return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl border border-line
-      bg-white ${course.soon ? 'opacity-60' : 'cursor-pointer hover:bg-base2 transition-colors'}`}
-      onClick={() => !course.soon && cat && navigate(`/courses/${cat.id}/${slug}`)}>
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-[1.1rem]"
-        style={{ background: `color-mix(in srgb, ${course.color} 12%, var(--color-tint))` }}>
-        {cat?.icon || '📚'}
-      </div>
       <div className="flex-1 min-w-0">
-        <div className="text-[0.8rem] font-bold text-navy truncate">{course.name}</div>
-        <div className="text-[0.65rem] text-muted">{course.lessons} lessons · {course.duration}</div>
+        <p className="text-[0.82rem] font-bold text-navy truncate">{title}</p>
+        {sub && <p className="text-[0.65rem] text-muted truncate">{sub}</p>}
       </div>
-      {course.soon
-        ? <span className="text-[0.6rem] font-bold text-muted bg-base2 border border-line px-2 py-0.5 rounded shrink-0">Soon</span>
-        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-muted/40 shrink-0"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      }
+      <div className="flex items-center gap-2 shrink-0">
+        <span className={`text-[0.6rem] font-bold px-2 py-0.5 rounded-full border
+          ${expired
+            ? 'bg-red-50 text-red-600 border-red-200'
+            : 'bg-green-50 text-green-700 border-green-200'}`}>
+          {expiry}
+        </span>
+        <button
+          onClick={onClick}
+          className="text-[0.72rem] font-bold px-3 py-1.5 rounded-lg text-white
+            hover:opacity-90 transition-opacity"
+          style={{ background: color }}>
+          {btnLabel}
+        </button>
+      </div>
     </div>
   )
 }
 
-/* ── Question quick row ── */
-function QuestionQuickRow({ item, navigate }) {
-  const c = { Easy: '#10B981', Medium: '#F59E0B', Hard: '#EF4444' }[item.difficulty] || '#6b7280'
+/* ── Section wrapper ── */
+function Section({ title, icon, count, color, empty, emptyHint, onBrowse, children, delay = 0 }) {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl border border-line bg-white
-      cursor-pointer hover:bg-base2 transition-colors"
-      onClick={() => navigate(`/interview/${item.categoryId}/${item.slug}`)}>
-      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c }}/>
-      <span className="flex-1 text-[0.8rem] font-semibold text-navy truncate">{item.title}</span>
-      <span className="text-[0.65rem] font-bold px-2 py-0.5 rounded-full shrink-0"
-        style={{ color: c, background: `color-mix(in srgb, ${c} 12%, var(--color-tint))` }}>
-        {item.difficulty}
-      </span>
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{icon}</span>
+          <h2 className="text-[0.9rem] font-extrabold text-navy">{title}</h2>
+          <span className="text-[0.6rem] font-bold px-2 py-0.5 rounded-full
+            bg-base2 text-muted border border-line">
+            {count}
+          </span>
+        </div>
+        {onBrowse && (
+          <button onClick={onBrowse}
+            className="text-[0.72rem] font-bold text-accent hover:opacity-70 transition-opacity">
+            Browse →
+          </button>
+        )}
+      </div>
+
+      {empty ? (
+        <div className="flex items-center gap-3 p-4 rounded-xl border border-dashed border-line bg-base/40 text-center">
+          <p className="text-[0.78rem] text-muted flex-1">{emptyHint}</p>
+          <button onClick={onBrowse}
+            className="text-[0.75rem] font-bold px-3 py-1.5 rounded-lg bg-navy text-white
+              hover:bg-navy2 transition-colors shrink-0">
+            Buy now
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">{children}</div>
+      )}
+    </motion.div>
   )
 }
 
-/* ── Hardcoded featured questions for dashboard ── */
-const DASHBOARD_QUESTIONS = [
-  { slug: 'two-sum',         categoryId: 'dsa',           title: 'Two Sum',                   difficulty: 'Easy'   },
-  { slug: 'best-time-buy-sell', categoryId: 'dsa',        title: 'Best Time to Buy & Sell Stock', difficulty: 'Easy' },
-  { slug: 'design-url-shortener', categoryId: 'system-design', title: 'Design a URL Shortener', difficulty: 'Medium' },
-  { slug: 'nth-salary',      categoryId: 'sql',           title: 'Nth Highest Salary',         difficulty: 'Medium' },
-  { slug: 'conflict-team',   categoryId: 'behavioral',    title: 'Conflict With a Teammate',   difficulty: 'Medium' },
-]
-
+/* ══════════════════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════════════════ */
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user, isPremium, isAdmin } = useAuth()
-  const logout   = useAuthStore(s => s.logout)
-  const [stats, setStats] = useState(null)
+  const { user, isPremium, isAdmin, purchases, purchasesLoading } = useAuth()
+  const logout = useAuthStore(s => s.logout)
+  const [bookmarks, setBookmarks] = useState([])
 
   useEffect(() => {
-    api.getPlatformStats().then(({ data }) => setStats(data)).catch(() => {})
-  }, [])
+    if (!user) return
+    api.getBookmarks()
+      .then(({ data }) => setBookmarks(data.bookmarks ?? []))
+      .catch(() => {})
+  }, [user])
 
   if (!user) { navigate('/login'); return null }
 
-  const featuredCourses    = Object.entries(COURSES_DATA).slice(0, 4)
-  const totalNotes         = stats?.notes.total      ?? '—'
-  const totalQuestions     = stats?.questions.total  ?? '—'
-  const totalFreeQuestions = stats?.questions.free   ?? '—'
-  const totalBlogs         = stats?.blog.total       ?? '—'
-  const totalCourses       = Object.values(COURSES_DATA).filter(c => !c.soon).length
+  /* ── Enrich purchases with display data ── */
+  const ownedNotes = (purchases?.notes ?? []).map(p => {
+    const meta = NOTES_DATA[p.slug] ?? {}
+    return {
+      ...p,
+      name:     meta.name  ?? p.slug,
+      icon:     meta.icon  ?? '📚',
+      color:    meta.color ?? '#4A90D9',
+      category: NOTE_CATEGORY[p.slug] ?? 'data-engineer',
+      expired:  p.expiresAt && new Date(p.expiresAt) < new Date(),
+      expiry:   formatExpiry(p.expiresAt),
+    }
+  })
+
+  const ownedCourses = (purchases?.courses ?? []).map(p => {
+    const meta = COURSES_DATA[p.slug] ?? {}
+    return {
+      ...p,
+      name:     meta.name     ?? p.slug,
+      icon:     '🎓',
+      color:    meta.color    ?? '#f5820a',
+      lessons:  meta.lessons  ?? null,
+      duration: meta.duration ?? null,
+      expired:  p.expiresAt && new Date(p.expiresAt) < new Date(),
+      expiry:   formatExpiry(p.expiresAt),
+    }
+  })
+
+  const ownedInterviews = (purchases?.interviews ?? []).map(p => {
+    const meta = TOPIC_META[p.slug] ?? {}
+    return {
+      ...p,
+      name:    meta.title ?? p.slug,
+      icon:    meta.icon  ?? '🎯',
+      color:   meta.color ?? '#6366F1',
+      expired: p.expiresAt && new Date(p.expiresAt) < new Date(),
+      expiry:  formatExpiry(p.expiresAt),
+    }
+  })
+
+  const totalOwned = ownedNotes.length + ownedCourses.length + ownedInterviews.length
 
   return (
     <>
       <Navbar />
 
-      {/* ── Welcome header ── */}
-      <div className="bg-white border-b border-line py-8 lg:py-10">
-        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
+      <div className="min-h-screen bg-base">
+        <div className="max-w-[900px] mx-auto px-5 sm:px-8 py-8 lg:py-12 flex flex-col gap-8">
+
+          {/* ── User header ── */}
           <motion.div
-            className="flex items-start justify-between gap-4 flex-wrap"
-            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}>
+            className="bg-white rounded-2xl border border-line p-6"
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="flex items-start justify-between gap-4 flex-wrap">
 
-            <div className="flex items-center gap-4">
-              {/* Avatar */}
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center
-                text-[1.2rem] font-black text-white shrink-0"
-                style={{ background: 'linear-gradient(135deg, #f5820a, #ec4899)' }}>
-                {user.avatar || user.name?.slice(0, 2).toUpperCase() || 'U'}
-              </div>
-              <div>
-                <p className="text-[0.7rem] font-bold uppercase tracking-[2px] text-accent">
-                  Welcome back 👋
-                </p>
-                <h1 className="text-[1.4rem] sm:text-[1.7rem] font-black text-navy leading-tight">
-                  {user.name}
-                </h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-[0.62rem] font-bold px-2.5 py-1 rounded-full
-                    ${isPremium
-                      ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                      : 'bg-base2 text-muted border border-line'}`}>
-                    {isPremium ? '⭐ Premium' : '🆓 Free Plan'}
-                  </span>
-                  <span className="text-[0.68rem] text-muted">{user.email}</span>
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center
+                  text-[1.3rem] font-black text-white shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #f5820a, #ec4899)' }}>
+                  {user.avatar || user.name?.slice(0, 2).toUpperCase() || 'U'}
                 </div>
-              </div>
-            </div>
-
-            {!isPremium && (
-              <button
-                className="px-5 py-2.5 rounded-xl font-bold text-[0.85rem] text-white
-                  bg-gradient-to-br from-accent to-accent2
-                  shadow-[0_4px_14px_rgba(245,130,10,0.25)] hover:opacity-90 transition-opacity"
-                onClick={() => navigate('/upgrade')}>
-                ⚡ Upgrade to Premium
-              </button>
-            )}
-          </motion.div>
-        </div>
-      </div>
-
-      {/* ── Body ── */}
-      <section className="py-8 lg:py-12 bg-base">
-        <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-            {[
-              { icon: '📝', label: 'Deep-dive notes',      value: totalNotes,             color: '#4A90D9', sub: isPremium || isAdmin ? 'All unlocked' : '2 parts free each' },
-              { icon: '🎓', label: 'Courses',              value: totalCourses,           color: '#f5820a', sub: isPremium || isAdmin ? 'Full access'  : 'Free previews'    },
-              { icon: '🎯', label: 'Interview questions',  value: totalQuestions,         color: '#6366F1', sub: `${totalFreeQuestions} free · rest premium`                 },
-              { icon: '📖', label: 'Blog articles',        value: totalBlogs,             color: '#10B981', sub: 'Free forever'                                              },
-            ].map((s, i) => (
-              <motion.div key={s.label}
-                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.06 }}>
-                <StatCard {...s}/>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Two column layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-            {/* ── Left: Courses ── */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}>
-              <SectionTitle title="Available Courses" action="Browse all" onAction={() => navigate('/courses')}/>
-              <div className="flex flex-col gap-2.5">
-                {featuredCourses.map(([slug, course]) => (
-                  <CourseQuickCard key={slug} slug={slug} course={course} navigate={navigate}/>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* ── Right: Interview questions ── */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}>
-              <SectionTitle title="Practice Questions" action="See all" onAction={() => navigate('/interview')}/>
-              <div className="flex flex-col gap-2.5">
-                {DASHBOARD_QUESTIONS.map(item => (
-                  <QuestionQuickRow key={item.slug} item={item} navigate={navigate}/>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-
-          {/* ── Premium upsell (free users only — not for admin/premium) ── */}
-          {!isPremium && !isAdmin && (
-            <motion.div
-              className="mt-10 bg-[#0f0f23] rounded-2xl p-6 sm:p-8 relative overflow-hidden"
-              initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}>
-              <div className="absolute inset-0 pointer-events-none"
-                style={{ background: 'radial-gradient(ellipse 60% 80% at 0% 50%, rgba(245,130,10,0.15) 0%, transparent 70%)' }}/>
-              <div className="relative flex items-center gap-6 flex-wrap">
-                <div className="flex-1 min-w-[200px]">
-                  <p className="text-[0.65rem] font-bold uppercase tracking-[2px] text-accent mb-2">
-                    Premium Plan
-                  </p>
-                  <h3 className="text-[1.2rem] font-black text-white mb-2">
-                    Unlock everything for ₹999/mo
-                  </h3>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    {['All notes unlocked', 'All courses', '470+ interview questions', 'Certificates'].map(f => (
-                      <span key={f} className="flex items-center gap-1.5 text-[0.72rem] text-white/50">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-                          stroke="#10B981" strokeWidth="2.5" strokeLinecap="round">
-                          <path d="M20 6L9 17l-5-5"/>
-                        </svg>
-                        {f}
+                <div>
+                  <h1 className="text-[1.3rem] font-black text-navy leading-tight">
+                    {user.name}
+                  </h1>
+                  <p className="text-[0.75rem] text-muted mt-0.5">{user.email}</p>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    {purchasesLoading
+                      ? <span className="w-14 h-5 rounded-full bg-base2 animate-pulse"/>
+                      : (
+                        <span className={`text-[0.6rem] font-bold px-2.5 py-1 rounded-full border
+                          ${isAdmin
+                            ? 'bg-purple-100 text-purple-700 border-purple-200'
+                            : isPremium
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : 'bg-base2 text-muted border-line'}`}>
+                          {isAdmin ? '🔑 Admin' : isPremium ? '✓ Active' : '🆓 Free'}
+                        </span>
+                      )
+                    }
+                    {user.created_at && (
+                      <span className="text-[0.6rem] text-muted">
+                        Member since {memberSince(user.created_at)}
                       </span>
-                    ))}
+                    )}
+                    <span className="text-[0.6rem] text-muted">
+                      {totalOwned} item{totalOwned !== 1 ? 's' : ''} owned
+                    </span>
                   </div>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {!isAdmin && (
+                  <button
+                    onClick={() => navigate('/upgrade')}
+                    className="px-4 py-2 rounded-xl font-bold text-[0.8rem] text-white
+                      bg-gradient-to-br from-accent to-accent2
+                      shadow-[0_4px_14px_rgba(245,130,10,0.25)] hover:opacity-90 transition-opacity">
+                    🛒 Browse & Buy
+                  </button>
+                )}
                 <button
-                  className="px-6 py-3 rounded-xl font-bold text-[0.9rem] text-white
-                    bg-gradient-to-br from-accent to-accent2
-                    shadow-[0_4px_16px_rgba(245,130,10,0.35)] hover:opacity-90 transition-opacity shrink-0"
-                  onClick={() => navigate('/upgrade')}>
-                  Upgrade Now →
+                  onClick={() => navigate('/settings')}
+                  className="px-4 py-2 rounded-xl font-bold text-[0.8rem] text-navy
+                    border border-line hover:bg-base2 transition-colors">
+                  ⚙️ Settings
+                </button>
+                <button
+                  onClick={() => { logout(); navigate('/') }}
+                  className="px-4 py-2 rounded-xl font-bold text-[0.8rem] text-red-500
+                    border border-red-200 hover:bg-red-50 transition-colors">
+                  Sign out
                 </button>
               </div>
+            </div>
+          </motion.div>
+
+          {/* ── No purchases state ── */}
+          {totalOwned === 0 && !isAdmin && (
+            <motion.div
+              className="bg-white rounded-2xl border border-line p-8 text-center"
+              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
+              <div className="text-4xl mb-3">📦</div>
+              <h2 className="text-[1.1rem] font-black text-navy mb-2">No purchases yet</h2>
+              <p className="text-[0.82rem] text-muted mb-5 max-w-[360px] mx-auto leading-relaxed">
+                Buy any note, interview pack, or course to unlock full access.
+                Each item is valid for 2 years from purchase.
+              </p>
+              <div className="flex items-center justify-center gap-3 flex-wrap text-[0.75rem] text-muted mb-5">
+                <span className="flex items-center gap-1"><span className="text-base">📚</span> Notes from ₹99</span>
+                <span className="text-line">·</span>
+                <span className="flex items-center gap-1"><span className="text-base">🎯</span> Interview packs from ₹99</span>
+                <span className="text-line">·</span>
+                <span className="flex items-center gap-1"><span className="text-base">🎓</span> Courses from ₹999</span>
+              </div>
+              <button
+                onClick={() => navigate('/upgrade')}
+                className="px-6 py-3 rounded-xl font-bold text-[0.9rem] text-white
+                  bg-gradient-to-br from-accent to-accent2
+                  shadow-[0_4px_16px_rgba(245,130,10,0.3)] hover:opacity-90 transition-opacity">
+                Browse & Buy →
+              </button>
             </motion.div>
           )}
 
-          {/* ── Quick links ── */}
-          <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {/* ── Owned content ── */}
+          {(totalOwned > 0 || isAdmin) && (
+            <div className="flex flex-col gap-6">
+
+              {/* My Notes */}
+              <Section
+                title="My Notes" icon="📚" count={ownedNotes.length}
+                empty={ownedNotes.length === 0}
+                emptyHint="You haven't bought any notes yet."
+                onBrowse={() => navigate('/notes')}
+                delay={0.05}>
+                {ownedNotes.map(n => (
+                  <OwnedRow key={n.slug}
+                    icon={n.icon} color={n.color}
+                    title={n.name}
+                    sub={`/notes/${n.category}/${n.slug}`}
+                    expiry={n.expiry} expired={n.expired}
+                    btnLabel="Read →"
+                    onClick={() => navigate(`/notes/${n.category}/${n.slug}`)}
+                  />
+                ))}
+              </Section>
+
+              {/* My Courses */}
+              <Section
+                title="My Courses" icon="🎓" count={ownedCourses.length}
+                empty={ownedCourses.length === 0}
+                emptyHint="You haven't enrolled in any courses yet."
+                onBrowse={() => navigate('/courses')}
+                delay={0.1}>
+                {ownedCourses.map(c => (
+                  <OwnedRow key={c.slug}
+                    icon={c.icon} color={c.color}
+                    title={c.name}
+                    sub={c.lessons ? `${c.lessons} lessons · ${c.duration}` : null}
+                    expiry={c.expiry} expired={c.expired}
+                    btnLabel="Learn →"
+                    onClick={() => navigate('/courses')}
+                  />
+                ))}
+              </Section>
+
+              {/* My Interview Packs */}
+              <Section
+                title="My Interview Packs" icon="🎯" count={ownedInterviews.length}
+                empty={ownedInterviews.length === 0}
+                emptyHint="You haven't bought any interview packs yet."
+                onBrowse={() => navigate('/interview')}
+                delay={0.15}>
+                {ownedInterviews.map(t => (
+                  <OwnedRow key={t.slug}
+                    icon={t.icon} color={t.color}
+                    title={t.name}
+                    expiry={t.expiry} expired={t.expired}
+                    btnLabel="Practice →"
+                    onClick={() => navigate(`/interview/${t.slug}`)}
+                  />
+                ))}
+              </Section>
+            </div>
+          )}
+
+          {/* ── Bookmarks ── */}
+          {bookmarks.length > 0 && (
+            <Section
+              title="Bookmarks" icon="🔖" count={bookmarks.length}
+              onBrowse={() => navigate('/notes')}
+              delay={0.2}>
+              {bookmarks.slice(0, 5).map(b => {
+                const slug = b.note_slug
+                const meta = NOTES_DATA[slug] ?? {}
+                const cat  = NOTE_CATEGORY[slug] ?? 'data-engineer'
+                return (
+                  <OwnedRow key={slug}
+                    icon={meta.icon ?? '📚'} color={meta.color ?? '#4A90D9'}
+                    title={meta.name ?? slug}
+                    expiry="Bookmarked" expired={false}
+                    btnLabel="Open →"
+                    onClick={() => navigate(`/notes/${cat}/${slug}`)}
+                  />
+                )
+              })}
+            </Section>
+          )}
+
+          {/* ── Quick nav ── */}
+          <motion.div
+            className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ delay: 0.25 }}>
             {[
-              { icon: '📝', label: 'Notes',     path: '/notes',     color: '#4A90D9' },
-              { icon: '🎓', label: 'Courses',   path: '/courses',   color: '#f5820a' },
-              { icon: '🎯', label: 'Interview', path: '/interview', color: '#6366F1' },
-              { icon: '📖', label: 'Blog',      path: '/blog',      color: '#10B981' },
+              { icon: '📝', label: 'All Notes',    path: '/notes',     color: '#4A90D9' },
+              { icon: '🎓', label: 'All Courses',  path: '/courses',   color: '#f5820a' },
+              { icon: '🎯', label: 'Interview',    path: '/interview', color: '#6366F1' },
+              { icon: '📖', label: 'Blog',         path: '/blog',      color: '#10B981' },
             ].map(l => (
               <button key={l.label}
                 className="flex items-center gap-3 p-4 rounded-xl bg-white
-                  border border-line hover:border-[var(--color-line-hover)] hover:shadow-sm
-                  transition-all cursor-pointer text-left"
+                  border border-line hover:border-[var(--color-line-hover)]
+                  hover:shadow-sm transition-all cursor-pointer text-left"
                 onClick={() => navigate(l.path)}>
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0"
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
                   style={{ background: `color-mix(in srgb, ${l.color} 12%, var(--color-tint))` }}>
                   {l.icon}
                 </div>
-                <span className="text-[0.85rem] font-bold text-navy">{l.label}</span>
+                <span className="text-[0.82rem] font-bold text-navy">{l.label}</span>
               </button>
             ))}
-          </div>
+          </motion.div>
 
-          {/* ── Account actions ── */}
-          <div className="mt-8 flex items-center gap-3 flex-wrap">
-            <button
-              className="px-4 py-2 rounded-xl text-[0.8rem] font-bold text-muted
-                border border-line hover:bg-base2 transition-colors"
-              onClick={() => navigate('/settings')}>
-              ⚙️ Account Settings
-            </button>
-            <button
-              className="px-4 py-2 rounded-xl text-[0.8rem] font-bold text-red-500
-                border border-red-200 hover:bg-red-50 transition-colors"
-              onClick={() => { logout(); navigate('/') }}>
-              Sign Out
-            </button>
-          </div>
         </div>
-      </section>
+      </div>
 
       <Footer />
     </>

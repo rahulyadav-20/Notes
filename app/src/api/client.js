@@ -84,6 +84,10 @@ export const api = {
   login:          (data)       => client.post('/auth/login', data),
   logout:         ()           => client.post('/auth/logout'),
   refreshToken:   ()           => client.post('/auth/refresh-token'),
+  verifyEmail:    (data)       => client.post('/auth/verify-email', data),
+  resendOtp:      (data)       => client.post('/auth/resend-otp', data),
+  forgotPassword: (data)       => client.post('/auth/forgot-password', data),
+  resetPassword:  (data)       => client.post('/auth/reset-password', data),
   devGoogleLogin: (role)       => client.post('/auth/dev/google', { role }),
 
   // Users
@@ -96,9 +100,11 @@ export const api = {
   delBookmark:  (slug)         => client.delete(`/users/me/bookmarks/${slug}`),
 
   // Courses
-  getCourses:   ()             => client.get('/courses'),
-  getCourse:    (slug)         => client.get(`/courses/${slug}`),
-  getLesson:    (slug, id)     => client.get(`/courses/${slug}/lessons/${id}`),
+  getCourses:           ()             => client.get('/courses'),
+  getCourse:            (slug)         => client.get(`/courses/${slug}`),
+  getLesson:            (slug, id)     => client.get(`/courses/${slug}/lessons/${id}`),
+  markLessonComplete:   (slug, id)     => client.post(`/courses/${slug}/lessons/${id}/complete`),
+  getMyProgress:        ()             => client.get('/courses/my-progress'),
 
   // Payments
   getPlans:       ()     => client.get('/payments/plans'),
@@ -111,6 +117,9 @@ export const api = {
   getNotes:       (category)     => client.get('/notes', { params: { category } }),
   getNote:        (slug)         => client.get(`/notes/${slug}`),
   getNotePart:    (slug, idx)    => client.get(`/notes/${slug}/parts/${idx}`),
+
+  // Search
+  search: (q) => client.get('/search', { params: { q } }),
 
   // Public stats
   getPlatformStats: () => client.get('/stats'),
@@ -127,9 +136,9 @@ export const api = {
   deleteBlogPost: (slug)         => client.delete(`/blog/${slug}`),
 
   // Interview
-  getInterviewTopics:    ()                       => client.get('/interview/topics'),
-  getInterviewQuestions: (topicSlug)              => client.get(`/interview/${topicSlug}/questions`),
-  getInterviewQuestion:  (topicSlug, questionSlug)=> client.get(`/interview/${topicSlug}/${questionSlug}`),
+  getInterviewTopics:    ()                           => client.get('/interview/topics'),
+  getInterviewQuestions: (topicSlug, params = {})     => client.get(`/interview/${topicSlug}/questions`, { params }),
+  getInterviewQuestion:  (topicSlug, questionSlug)    => client.get(`/interview/${topicSlug}/${questionSlug}`),
 
   // Admin — Users
   adminUsers:      (params)      => client.get('/admin/users', { params }),

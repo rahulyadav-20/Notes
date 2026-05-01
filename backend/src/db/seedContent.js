@@ -18,105 +18,95 @@ import { INTERVIEW_TOPICS, INTERVIEW_QUESTIONS } from './content/interview_quest
 import { BLOG_POSTS }              from './content/blog_posts.js'
 
 /* ══════════════════════════════════════════════════════════
-   NOTES METADATA  — individual price per note (in paise)
-   0 = free note  |  49900 = ₹499  |  29900 = ₹299
+   NOTES METADATA  — all notes ₹99 (9900 paise) by default.
+   Admin can override individual prices via the admin panel.
 ══════════════════════════════════════════════════════════ */
+const NOTE_PRICE = 9900   // ₹99
+
 const NOTES = [
   {
     slug: 'kafka', category: 'data-engineer', title: 'Apache Kafka',
     tagline: 'Distributed event streaming — internals, replication & production ops',
     icon: '⚡', color: '#4A90D9', level: 'Intermediate',
     parts_count: 6, sections_count: 14, free_parts: 2,
-    price: 49900,    // ₹499 — individual purchase
-    is_premium: false,
+    price: NOTE_PRICE, is_premium: false,
   },
   {
     slug: 'spark', category: 'data-engineer', title: 'Apache Spark',
     tagline: 'Unified analytics engine — RDDs to structured streaming at scale',
     icon: '🔥', color: '#E25A1C', level: 'Advanced',
     parts_count: 8, sections_count: 28, free_parts: 2,
-    price: 49900,
-    is_premium: false,
+    price: NOTE_PRICE, is_premium: false,
   },
   {
     slug: 'flink', category: 'data-engineer', title: 'Apache Flink',
     tagline: 'Stateful stream processing — exactly-once semantics & event time',
     icon: '🌊', color: '#E6522C', level: 'Advanced',
     parts_count: 7, sections_count: 24, free_parts: 2,
-    price: 39900,    // ₹399
-    is_premium: false,
+    price: NOTE_PRICE, is_premium: false,
   },
   {
     slug: 'druid', category: 'data-engineer', title: 'Apache Druid',
     tagline: 'Real-time OLAP database — sub-second queries on petabytes',
     icon: '🐉', color: '#29ABE2', level: 'Advanced',
     parts_count: 6, sections_count: 20, free_parts: 2,
-    price: 39900,
-    is_premium: false,
+    price: NOTE_PRICE, is_premium: false,
   },
   {
     slug: 'gcp', category: 'data-engineer', title: 'GCP Data & AI',
     tagline: 'BigQuery, Dataflow, Pub/Sub, Vertex AI & full GCP data stack',
     icon: '☁️', color: '#4285F4', level: 'Intermediate',
     parts_count: 8, sections_count: 26, free_parts: 2,
-    price: 49900,
-    is_premium: false,
+    price: NOTE_PRICE, is_premium: false,
   },
   {
     slug: 'data-modeling', category: 'data-engineer', title: 'Data Modeling',
     tagline: 'Dimensional modeling, data vault & modern lakehouse patterns',
     icon: '🏗️', color: '#7C3AED', level: 'Intermediate',
     parts_count: 5, sections_count: 18, free_parts: 2,
-    price: 29900,    // ₹299
-    is_premium: false,
+    price: NOTE_PRICE, is_premium: false,
   },
   {
     slug: 'sql', category: 'data-engineer', title: 'SQL Deep Dive',
     tagline: 'From basic queries to window functions, CTEs & query optimisation',
     icon: '🗃️', color: '#336791', level: 'Beginner',
     parts_count: 6, sections_count: 20, free_parts: 2,
-    price: 29900,
-    is_premium: false,
+    price: NOTE_PRICE, is_premium: false,
   },
   {
     slug: 'machine-learning', category: 'data-science', title: 'Machine Learning',
     tagline: 'From regression to ensemble methods — theory, code & production',
     icon: '🤖', color: '#8B5CF6', level: 'Intermediate',
     parts_count: 6, sections_count: 24, free_parts: 2,
-    price: 49900,
-    is_premium: false,
+    price: NOTE_PRICE, is_premium: false,
   },
   {
     slug: 'langchain', category: 'ai', title: 'LangChain',
     tagline: 'Build LLM applications — chains, agents, RAG & memory systems',
     icon: '🔗', color: '#1C7C54', level: 'Intermediate',
     parts_count: 5, sections_count: 20, free_parts: 2,
-    price: 39900,
-    is_premium: false,
+    price: NOTE_PRICE, is_premium: false,
   },
   {
     slug: 'kubernetes', category: 'devops', title: 'Kubernetes',
     tagline: 'Container orchestration — pods to production-grade cluster ops',
     icon: '🚀', color: '#326CE5', level: 'Advanced',
     parts_count: 6, sections_count: 22, free_parts: 2,
-    price: 49900,
-    is_premium: false,
+    price: NOTE_PRICE, is_premium: false,
   },
   {
     slug: 'react', category: 'frontend', title: 'React.js',
     tagline: 'Hooks, patterns, state management & production React apps',
     icon: '⚛️', color: '#0EA5E9', level: 'Intermediate',
     parts_count: 6, sections_count: 24, free_parts: 2,
-    price: 39900,
-    is_premium: false,
+    price: NOTE_PRICE, is_premium: false,
   },
   {
     slug: 'javascript', category: 'frontend', title: 'JavaScript',
     tagline: 'The language from closures to async/await & modern ES patterns',
     icon: '🟨', color: '#D97706', level: 'Beginner',
     parts_count: 6, sections_count: 26, free_parts: 2,
-    price: 29900,
-    is_premium: false,
+    price: NOTE_PRICE, is_premium: false,
   },
 ]
 

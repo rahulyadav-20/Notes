@@ -299,42 +299,42 @@ function SecuritySection({ user }) {
 }
 
 /* ── Plan section ── */
-function PlanSection({ user, isPremium, navigate }) {
-  const planFeatures = {
-    free:    ['Free notes (2 parts per topic)', '30+ free interview questions', 'Blog access', 'Community access'],
-    premium: ['All note parts unlocked', '470+ interview questions', 'All courses', 'PDF downloads', 'Certificates', 'Priority support'],
-  }
+function PlanSection({ user, isPremium, purchases, navigate }) {
+  const freeFeatures    = ['Free notes (2 parts per topic)', '30+ free interview questions', 'Blog access']
+  const activeFeatures  = ['All purchased note parts unlocked', 'Purchased interview packs', 'Enrolled courses', 'Valid for 2 years per item']
+
+  const ownedCount = (purchases?.notes?.length || 0) + (purchases?.interviews?.length || 0) + (purchases?.courses?.length || 0)
 
   return (
     <div className="flex flex-col gap-6">
-      <Card title="Current plan" desc="Your active subscription.">
+      <Card title="Current plan" desc="Your purchase status.">
         <div className="flex items-start gap-4 p-4 rounded-xl bg-base border border-line">
           <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0
-            ${isPremium ? 'bg-amber-100' : 'bg-base2'}`}>
-            {isPremium ? '⭐' : '🆓'}
+            ${isPremium ? 'bg-green-50' : 'bg-base2'}`}>
+            {isPremium ? '✓' : '🆓'}
           </div>
           <div className="flex-1">
             <p className="text-[0.92rem] font-extrabold text-navy">
-              {isPremium ? 'Premium Plan' : 'Free Plan'}
+              {isPremium ? 'Active Buyer' : 'Free Plan'}
             </p>
             <p className="text-[0.75rem] text-muted mt-0.5">
               {isPremium
-                ? `Active${user?.subscription?.expiresAt ? ` · Renews ${new Date(user.subscription.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ' · Lifetime'}`
+                ? `${ownedCount} item${ownedCount !== 1 ? 's' : ''} owned — access valid for 2 years from purchase`
                 : 'Limited access to free content'}
             </p>
           </div>
           <span className={`text-[0.62rem] font-bold px-2.5 py-1 rounded-full border self-center
-            ${isPremium ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-base2 text-muted border-line'}`}>
+            ${isPremium ? 'bg-green-50 text-green-700 border-green-200' : 'bg-base2 text-muted border-line'}`}>
             {isPremium ? 'Active' : 'Free'}
           </span>
         </div>
 
         <div>
           <p className="text-[0.75rem] font-bold text-navy mb-3">
-            {isPremium ? 'Your benefits' : 'Free plan includes'}
+            {isPremium ? 'Your access' : 'Free plan includes'}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {planFeatures[isPremium ? 'premium' : 'free'].map(f => (
+            {(isPremium ? activeFeatures : freeFeatures).map(f => (
               <div key={f} className="flex items-center gap-2 text-[0.78rem] text-navy/70">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                   stroke={isPremium ? '#10B981' : '#6b7280'} strokeWidth="2.5" strokeLinecap="round">
@@ -347,36 +347,28 @@ function PlanSection({ user, isPremium, navigate }) {
         </div>
       </Card>
 
-      {!isPremium && (
-        <div className="relative overflow-hidden rounded-2xl bg-[#0f0f23] p-6">
-          <div className="absolute inset-0 pointer-events-none"
-            style={{ background: 'radial-gradient(ellipse 70% 100% at 0% 50%, rgba(245,130,10,0.18) 0%, transparent 65%)' }}/>
-          <div className="relative">
-            <p className="text-[0.62rem] font-bold uppercase tracking-[2.5px] text-accent mb-2">
-              Upgrade your plan
-            </p>
-            <h3 className="text-[1.15rem] font-black text-white mb-1">
-              Unlock everything for ₹999/mo
-            </h3>
-            <p className="text-[0.78rem] text-white/40 mb-4 leading-relaxed">
-              Get full access to all notes, 470+ interview questions, all courses, and certificates.
-            </p>
-            <div className="flex gap-3 flex-wrap">
-              <button
-                onClick={() => navigate('/upgrade')}
-                className="px-5 py-2.5 rounded-xl font-bold text-[0.85rem] text-white
-                  bg-gradient-to-br from-accent to-accent2
-                  shadow-[0_4px_14px_rgba(245,130,10,0.35)] hover:opacity-90 transition-opacity">
-                Upgrade to Premium →
-              </button>
-              <button className="px-5 py-2.5 rounded-xl font-bold text-[0.85rem] text-white/50
-                border border-white/10 hover:border-white/20 transition-colors">
-                View all plans
-              </button>
-            </div>
-          </div>
+      <div className="relative overflow-hidden rounded-2xl bg-[#0f0f23] p-6">
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse 70% 100% at 0% 50%, rgba(245,130,10,0.18) 0%, transparent 65%)' }}/>
+        <div className="relative">
+          <p className="text-[0.62rem] font-bold uppercase tracking-[2.5px] text-accent mb-2">
+            {isPremium ? 'Buy more content' : 'Get started'}
+          </p>
+          <h3 className="text-[1.15rem] font-black text-white mb-1">
+            {isPremium ? 'Buy more notes, courses & interview packs' : 'Buy individual notes & courses'}
+          </h3>
+          <p className="text-[0.78rem] text-white/40 mb-4 leading-relaxed">
+            Notes from ₹99 · Interview packs from ₹99 · Courses from ₹999 · Valid 2 years per item.
+          </p>
+          <button
+            onClick={() => navigate('/upgrade')}
+            className="px-5 py-2.5 rounded-xl font-bold text-[0.85rem] text-white
+              bg-gradient-to-br from-accent to-accent2
+              shadow-[0_4px_14px_rgba(245,130,10,0.35)] hover:opacity-90 transition-opacity">
+            Browse & Buy →
+          </button>
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -628,7 +620,7 @@ const TABS = [
 
 export default function Settings() {
   const navigate     = useNavigate()
-  const { user, isPremium } = useAuth()
+  const { user, isPremium, purchases } = useAuth()
   const { logout, updateProfile } = useAuthStore()
   const { theme } = useThemeStore()
   const [activeTab, setActiveTab] = useState('profile')
@@ -721,7 +713,7 @@ export default function Settings() {
 
                   {activeTab === 'profile'    && <ProfileSection user={user} updateProfile={updateProfile}/>}
                   {activeTab === 'security'   && <SecuritySection user={user}/>}
-                  {activeTab === 'plan'       && <PlanSection user={user} isPremium={isPremium} navigate={navigate}/>}
+                  {activeTab === 'plan'       && <PlanSection user={user} isPremium={isPremium} purchases={purchases} navigate={navigate}/>}
                   {activeTab === 'appearance' && <AppearanceSection/>}
                   {activeTab === 'danger'     && <DangerSection logout={logout} navigate={navigate}/>}
 

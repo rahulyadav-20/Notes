@@ -23,15 +23,28 @@ function roleFlags(user) {
 /* ── Initial state: rehydrate token from localStorage ── */
 const initialToken = loadToken()
 
+/* ── Shared helper: fetch purchases and flip isPremium ── */
+function fetchPurchases(set, get) {
+  set({ purchasesLoading: true })
+  api.myPurchases()
+    .then(({ data: p }) => {
+      const hasPurchases =
+        (p.notes?.length || 0) + (p.interviews?.length || 0) + (p.courses?.length || 0) > 0
+      set(s => ({ purchases: p, isPremium: s.isAdmin || hasPurchases, purchasesLoading: false }))
+    })
+    .catch(() => set({ purchasesLoading: false }))
+}
+
 export const useAuthStore = create((set, get) => ({
-  user:       null,
-  token:      initialToken,
-  plan:       'user',
-  isLoggedIn: false,
-  isPremium:  false,   // kept for backwards compat — true only for admin
-  isAdmin:    false,
-  loading:    true,
-  purchases:  { notes: [], interviews: [], courses: [] }, // items user has purchased
+  user:             null,
+  token:            initialToken,
+  plan:             'user',
+  isLoggedIn:       false,
+  isPremium:        false,
+  isAdmin:          false,
+  loading:          true,
+  purchasesLoading: !!initialToken, // true on mount when token exists — cleared after myPurchases
+  purchases:        { notes: [], interviews: [], courses: [] },
 
   /** Check if user has active access to an item */
   owns: (type, slug) => {
@@ -46,13 +59,12 @@ export const useAuthStore = create((set, get) => ({
   ───────────────────────────────────────────────── */
   init: async () => {
     const token = loadToken()
-    if (!token) { set({ loading: false }); return }
+    if (!token) { set({ loading: false, purchasesLoading: false }); return }
     try {
       const { data } = await api.getMe()
       const user = data.user
       set({ user, isLoggedIn: true, loading: false, ...roleFlags(user) })
-      // Load purchases in background (non-blocking)
-      api.myPurchases().then(({ data: p }) => set({ purchases: p })).catch(() => {})
+      fetchPurchases(set, get)
     } catch {
       try {
         const { data: refreshData } = await api.refreshToken()
@@ -60,10 +72,12 @@ export const useAuthStore = create((set, get) => ({
         const { data } = await api.getMe()
         const user = data.user
         set({ user, token: refreshData.accessToken, isLoggedIn: true, loading: false, ...roleFlags(user) })
-        api.myPurchases().then(({ data: p }) => set({ purchases: p })).catch(() => {})
+        fetchPurchases(set, get)
       } catch {
         clearToken()
-        set({ user: null, token: null, isLoggedIn: false, loading: false, plan: 'user', isPremium: false, isAdmin: false, purchases: { notes: [], interviews: [], courses: [] } })
+        set({ user: null, token: null, isLoggedIn: false, loading: false, purchasesLoading: false,
+              plan: 'user', isPremium: false, isAdmin: false,
+              purchases: { notes: [], interviews: [], courses: [] } })
       }
     }
   },
@@ -74,13 +88,31 @@ export const useAuthStore = create((set, get) => ({
   signup: async ({ name, email, password }) => {
     try {
       const { data } = await api.register({ name, email, password })
+      if (data.requiresVerification) {
+        return { success: true, requiresVerification: true, email: data.email }
+      }
+      // Fallback: if server issues token directly (e.g. future change)
       saveToken(data.accessToken)
       set({ user: data.user, token: data.accessToken, isLoggedIn: true, loading: false, ...roleFlags(data.user) })
+      fetchPurchases(set, get)
       return { success: true }
     } catch (err) {
       const message = err.response?.data?.error
         || (err.code === 'ERR_NETWORK' || !err.response ? 'Cannot reach server. Is the backend running on port 4000?' : 'Registration failed. Please try again.')
       return { success: false, error: message }
+    }
+  },
+
+  /* ── Verify email with OTP ── */
+  verifyEmail: async ({ email, otp }) => {
+    try {
+      const { data } = await api.verifyEmail({ email, otp })
+      saveToken(data.accessToken)
+      set({ user: data.user, token: data.accessToken, isLoggedIn: true, loading: false, ...roleFlags(data.user) })
+      fetchPurchases(set, get)
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err.response?.data?.error || 'Verification failed.' }
     }
   },
 
@@ -92,6 +124,7 @@ export const useAuthStore = create((set, get) => ({
       const { data } = await api.login({ email, password })
       saveToken(data.accessToken)
       set({ user: data.user, token: data.accessToken, isLoggedIn: true, loading: false, ...roleFlags(data.user) })
+      fetchPurchases(set, get)
       return { success: true }
     } catch (err) {
       console.error('[login] status:', err.response?.status)
@@ -101,7 +134,7 @@ export const useAuthStore = create((set, get) => ({
         || (err.code === 'ERR_NETWORK' || !err.response
           ? 'Cannot reach server — is the backend running on port 4000?'
           : `Server error (${err.response?.status}): ${JSON.stringify(err.response?.data)}`)
-      return { success: false, error: message }
+      return { success: false, error: message, rawData: err.response?.data }
     }
   },
 
@@ -114,6 +147,7 @@ export const useAuthStore = create((set, get) => ({
       const { data } = await api.devGoogleLogin(role)
       saveToken(data.accessToken)
       set({ user: data.user, token: data.accessToken, isLoggedIn: true, loading: false, ...roleFlags(data.user) })
+      fetchPurchases(set, get)
       return { success: true }
     } catch (err) {
       const message = err.response?.data?.error || 'Dev login failed.'
@@ -129,6 +163,7 @@ export const useAuthStore = create((set, get) => ({
     try {
       const { data } = await api.getMe()
       set({ user: data.user, token, isLoggedIn: true, loading: false, ...roleFlags(data.user) })
+      fetchPurchases(set, get)
       return { success: true }
     } catch {
       clearToken()
@@ -142,7 +177,8 @@ export const useAuthStore = create((set, get) => ({
   logout: async () => {
     try { await api.logout() } catch { /* ignore — clear locally regardless */ }
     clearToken()
-    set({ user: null, token: null, plan: 'user', isLoggedIn: false, isPremium: false, isAdmin: false })
+    set({ user: null, token: null, plan: 'user', isLoggedIn: false, isPremium: false, isAdmin: false,
+          purchasesLoading: false, purchases: { notes: [], interviews: [], courses: [] } })
   },
 
   /* ─────────────────────────────────────────────────
@@ -176,6 +212,7 @@ if (typeof window !== 'undefined') {
     useAuthStore.setState({
       user: null, token: null, plan: 'user',
       isLoggedIn: false, isPremium: false, isAdmin: false,
+      purchasesLoading: false, purchases: { notes: [], interviews: [], courses: [] },
     })
   })
 }

@@ -39,43 +39,51 @@ const USERS = [
 ]
 
 /* ── Notes metadata ─────────────────────────────────── */
+const DEFAULT_NOTE_PRICE = 9900   // ₹99 in paise
+
 const NOTES = [
-  { slug: 'kafka',          category: 'data-engineer', title: 'Apache Kafka',      is_premium: false },
-  { slug: 'spark',          category: 'data-engineer', title: 'Apache Spark',      is_premium: false },
-  { slug: 'flink',          category: 'data-engineer', title: 'Apache Flink',      is_premium: false },
-  { slug: 'druid',          category: 'data-engineer', title: 'Apache Druid',      is_premium: false },
-  { slug: 'gcp',            category: 'data-engineer', title: 'GCP Data & AI',     is_premium: false },
-  { slug: 'data-modeling',  category: 'data-engineer', title: 'Data Modeling',     is_premium: false },
-  { slug: 'sql',            category: 'data-engineer', title: 'SQL Deep Dive',     is_premium: false },
-  { slug: 'machine-learning',category:'data-science',  title: 'Machine Learning',  is_premium: false },
-  { slug: 'langchain',      category: 'ai',            title: 'LangChain',         is_premium: false },
-  { slug: 'kubernetes',     category: 'devops',        title: 'Kubernetes',        is_premium: false },
-  { slug: 'react',          category: 'frontend',      title: 'React.js',          is_premium: false },
-  { slug: 'javascript',     category: 'frontend',      title: 'JavaScript',        is_premium: false },
+  { slug: 'kafka',           category: 'data-engineer', title: 'Apache Kafka',      is_premium: false, price: DEFAULT_NOTE_PRICE },
+  { slug: 'spark',           category: 'data-engineer', title: 'Apache Spark',      is_premium: false, price: DEFAULT_NOTE_PRICE },
+  { slug: 'flink',           category: 'data-engineer', title: 'Apache Flink',      is_premium: false, price: DEFAULT_NOTE_PRICE },
+  { slug: 'druid',           category: 'data-engineer', title: 'Apache Druid',      is_premium: false, price: DEFAULT_NOTE_PRICE },
+  { slug: 'gcp',             category: 'data-engineer', title: 'GCP Data & AI',     is_premium: false, price: DEFAULT_NOTE_PRICE },
+  { slug: 'data-modeling',   category: 'data-engineer', title: 'Data Modeling',     is_premium: false, price: DEFAULT_NOTE_PRICE },
+  { slug: 'sql',             category: 'data-engineer', title: 'SQL Deep Dive',     is_premium: false, price: DEFAULT_NOTE_PRICE },
+  { slug: 'machine-learning', category: 'data-science', title: 'Machine Learning',  is_premium: false, price: DEFAULT_NOTE_PRICE },
+  { slug: 'langchain',       category: 'ai',            title: 'LangChain',         is_premium: false, price: DEFAULT_NOTE_PRICE },
+  { slug: 'kubernetes',      category: 'devops',        title: 'Kubernetes',        is_premium: false, price: DEFAULT_NOTE_PRICE },
+  { slug: 'react',           category: 'frontend',      title: 'React.js',          is_premium: false, price: DEFAULT_NOTE_PRICE },
+  { slug: 'javascript',      category: 'frontend',      title: 'JavaScript',        is_premium: false, price: DEFAULT_NOTE_PRICE },
 ]
 
-/* ── Sample courses ──────────────────────────────────── */
+/* ── Courses — slugs MUST match COURSES_DATA keys in app/src/data/courses.js ── */
 const COURSES = [
   {
-    slug:         'apache-kafka-mastery',
-    title:        'Apache Kafka Mastery',
-    description:  'Deep-dive into Kafka internals, consumers, producers and stream processing.',
-    price:        49900,
-    is_published: true,
+    slug: 'kafka-masterclass', is_published: true, price: 99900, soon: false,
+    title: 'Apache Kafka Masterclass', tagline: 'Go from zero to production — internals, streams, connect & ops',
+    description: 'Deep-dive into Kafka internals, replication, consumers, producers and stream processing at scale.',
+    color: '#4A90D9', icon_slug: 'kafka', instructor: 'Rahul Yadav', level: 'Intermediate',
+    duration_text: '14h 20m', lesson_count: 52, module_count: 6, free_modules: 1, rating: 4.9,
+    highlights: ['Consumer Groups & Offsets', 'ISR & Replication', 'Kafka Streams & ksqlDB', 'Schema Registry', 'Production Tuning'],
+    module_titles: ['Architecture & Core Concepts', 'Producers & Consumer Groups', 'Brokers, Topics & Replication', 'Kafka Streams', 'Schema Registry & Kafka Connect', 'Production Operations'],
   },
   {
-    slug:         'system-design-fundamentals',
-    title:        'System Design Fundamentals',
-    description:  'Learn to design scalable distributed systems from scratch.',
-    price:        49900,
-    is_published: true,
+    slug: 'spark-masterclass', is_published: false, price: 99900, soon: true,
+    title: 'Apache Spark Masterclass', tagline: 'RDDs to structured streaming — performance, MLlib & cloud deploy',
+    description: 'Unified analytics engine — from RDDs to DataFrames, Spark SQL, Structured Streaming and production MLlib.',
+    color: '#E25A1C', icon_slug: 'spark', instructor: 'Rahul Yadav', level: 'Advanced',
+    duration_text: '18h 45m', lesson_count: 72, module_count: 8, free_modules: 1, rating: 4.8,
+    highlights: ['Spark Execution Model', 'DataFrame & Spark SQL', 'Structured Streaming', 'Performance Tuning', 'Cloud Deployment'],
+    module_titles: ['Architecture & Execution Model', 'RDDs, DataFrames & Datasets', 'Spark SQL & Query Optimization', 'Structured Streaming', 'MLlib & Feature Engineering', 'GraphX', 'Performance Tuning', 'Production & Cloud'],
   },
   {
-    slug:         'data-engineering-bootcamp',
-    title:        'Data Engineering Bootcamp',
-    description:  'Spark, Flink, Druid and modern data pipeline design.',
-    price:        59900,
-    is_published: false,   // coming soon
+    slug: 'gcp-masterclass', is_published: false, price: 99900, soon: true,
+    title: 'GCP Data & AI Masterclass', tagline: 'BigQuery, Dataflow, Pub/Sub, Vertex AI & the full GCP data stack',
+    description: 'Hands-on guide to every major GCP data service — from BigQuery internals to Vertex AI pipelines.',
+    color: '#4285F4', icon_slug: 'gcp', instructor: 'Rahul Yadav', level: 'Intermediate',
+    duration_text: '20h 00m', lesson_count: 80, module_count: 8, free_modules: 1, rating: 4.9,
+    highlights: ['BigQuery Internals', 'Dataflow Pipelines', 'Vertex AI & MLOps', 'Cost Optimization'],
+    module_titles: ['Core Services Overview', 'BigQuery Deep Dive', 'Dataflow & Apache Beam', 'Cloud Pub/Sub', 'Vertex AI & ML Pipelines', 'Orchestration', 'Networking & IAM', 'Cost & Production'],
   },
 ]
 
@@ -94,12 +102,13 @@ async function seed() {
     for (const u of USERS) {
       const hash = u.password ? await bcrypt.hash(u.password, 10) : null
       await client.query(
-        `INSERT INTO users (name, email, password_hash, role, google_id)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO users (name, email, password_hash, role, google_id, email_verified)
+         VALUES ($1, $2, $3, $4, $5, TRUE)
          ON CONFLICT (email) DO UPDATE
-           SET role      = EXCLUDED.role,
-               google_id = EXCLUDED.google_id,
-               updated_at = NOW()`,
+           SET role           = EXCLUDED.role,
+               google_id      = EXCLUDED.google_id,
+               email_verified = TRUE,
+               updated_at     = NOW()`,
         [u.name, u.email, hash, u.role, u.google_id]
       )
       console.log(`   ✓  ${u.role.padEnd(8)} ${u.email}${u.password ? `  (password: ${u.password})` : '  (OAuth only)'}`)
@@ -122,12 +131,13 @@ async function seed() {
     console.log('\n📄 Seeding notes metadata…')
     for (const n of NOTES) {
       await client.query(
-        `INSERT INTO notes_metadata (slug, category, title, is_premium)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO notes_metadata (slug, category, title, is_premium, price)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (slug) DO UPDATE
            SET category = EXCLUDED.category,
-               title    = EXCLUDED.title`,
-        [n.slug, n.category, n.title, n.is_premium]
+               title    = EXCLUDED.title,
+               price    = EXCLUDED.price`,
+        [n.slug, n.category, n.title, n.is_premium, n.price]
       )
       console.log(`   ✓  ${n.slug}`)
     }
@@ -151,42 +161,71 @@ async function seed() {
     console.log('\n📚 Creating sample courses…')
     for (const c of COURSES) {
       const result = await client.query(
-        `INSERT INTO courses (slug, title, description, price, is_published)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (slug) DO UPDATE
-           SET title = EXCLUDED.title, updated_at = NOW()
+        `INSERT INTO courses
+           (slug, title, description, tagline, price, is_published, soon,
+            color, icon_slug, instructor, level, duration_text,
+            lesson_count, module_count, free_modules, rating, highlights, module_titles)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+         ON CONFLICT (slug) DO UPDATE SET
+           title         = EXCLUDED.title,
+           description   = EXCLUDED.description,
+           tagline       = EXCLUDED.tagline,
+           price         = EXCLUDED.price,
+           is_published  = EXCLUDED.is_published,
+           soon          = EXCLUDED.soon,
+           color         = EXCLUDED.color,
+           icon_slug     = EXCLUDED.icon_slug,
+           instructor    = EXCLUDED.instructor,
+           level         = EXCLUDED.level,
+           duration_text = EXCLUDED.duration_text,
+           lesson_count  = EXCLUDED.lesson_count,
+           module_count  = EXCLUDED.module_count,
+           free_modules  = EXCLUDED.free_modules,
+           rating        = EXCLUDED.rating,
+           highlights    = EXCLUDED.highlights,
+           module_titles = EXCLUDED.module_titles,
+           updated_at    = NOW()
          RETURNING id, slug`,
-        [c.slug, c.title, c.description, c.price, c.is_published]
+        [
+          c.slug, c.title, c.description, c.tagline, c.price, c.is_published, c.soon,
+          c.color, c.icon_slug, c.instructor, c.level, c.duration_text,
+          c.lesson_count, c.module_count, c.free_modules, c.rating,
+          JSON.stringify(c.highlights), JSON.stringify(c.module_titles),
+        ]
       )
       const courseId = result.rows[0].id
       console.log(`   ✓  ${c.slug} (${c.is_published ? 'live' : 'coming soon'})`)
 
       if (!c.is_published) continue
 
-      // Add 2 sample sections with lessons
-      for (let s = 1; s <= 2; s++) {
+      // Seed sections from real module titles (upsert by order_index)
+      const moduleTitles = c.module_titles
+      for (let i = 0; i < moduleTitles.length; i++) {
         const secResult = await client.query(
           `INSERT INTO sections (course_id, title, order_index)
            VALUES ($1, $2, $3)
-           ON CONFLICT DO NOTHING
+           ON CONFLICT (course_id, order_index) DO UPDATE
+             SET title = EXCLUDED.title
            RETURNING id`,
-          [courseId, `Section ${s} — ${c.title}`, s - 1]
+          [courseId, moduleTitles[i], i]
         )
         const sectionId = secResult.rows[0]?.id
         if (!sectionId) continue
 
-        for (let l = 1; l <= 3; l++) {
+        // Seed 3 sample lessons per section (idempotent via section+order_index)
+        const lessonsPerSection = Math.ceil(c.lesson_count / moduleTitles.length)
+        for (let l = 0; l < Math.min(lessonsPerSection, 4); l++) {
+          const lessonTitles = [
+            `Introduction to ${moduleTitles[i]}`,
+            `Deep Dive: ${moduleTitles[i]} Internals`,
+            `Hands-on: ${moduleTitles[i]} in Practice`,
+            `${moduleTitles[i]} — Production Patterns`,
+          ]
           await client.query(
             `INSERT INTO lessons (section_id, title, duration_seconds, is_preview, order_index)
              VALUES ($1, $2, $3, $4, $5)
              ON CONFLICT DO NOTHING`,
-            [
-              sectionId,
-              `Lesson ${l} — Topic ${l}`,
-              300 + l * 60,
-              l === 1,          // first lesson is a free preview
-              l - 1,
-            ]
+            [sectionId, lessonTitles[l], 420 + l * 120, l === 0, l]
           )
         }
       }

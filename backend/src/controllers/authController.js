@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
 import { query } from '../config/db.js'
 import { blacklistToken } from '../config/redis.js'
+import { sendOtpEmail, sendPasswordResetEmail } from '../services/emailService.js'
 
 /* ─────────────────────────────────────────────────────
    HELPERS
@@ -10,6 +11,14 @@ import { blacklistToken } from '../config/redis.js'
 
 const ACCESS_TTL  = 15 * 60              // 15 minutes (seconds)
 const REFRESH_TTL = 7  * 24 * 60 * 60   // 7 days     (seconds)
+
+const MAX_FAILED_ATTEMPTS = 5            // lock after 5 wrong passwords
+const LOCK_DURATION_MS    = 15 * 60 * 1000  // locked for 15 minutes
+const OTP_TTL_MS          = 10 * 60 * 1000  // OTP valid for 10 minutes
+
+function generateOtp() {
+  return String(Math.floor(100_000 + Math.random() * 900_000))
+}
 
 function signAccessToken(user) {
   return jwt.sign(
@@ -52,34 +61,129 @@ export function userPublic(user) {
 }
 
 /* ─────────────────────────────────────────────────────
-   REGISTER
+   REGISTER  — creates account + sends OTP, no JWT yet
 ───────────────────────────────────────────────────── */
 export async function register(req, res, next) {
   try {
     const { name, email, password } = req.body
     console.log('[register] attempt →', email)
 
-    // Duplicate check
-    const exists = await query('SELECT id FROM users WHERE email = $1', [email])
+    const exists = await query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()])
     if (exists.rows.length) {
       return res.status(409).json({ error: 'Email already registered.' })
     }
 
     const password_hash = await bcrypt.hash(password, 12)
+    const otp           = generateOtp()
+    const otp_expires   = new Date(Date.now() + OTP_TTL_MS)
+
+    await query(
+      `INSERT INTO users (name, email, password_hash, otp_code, otp_expires_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [name.trim(), email.toLowerCase(), password_hash, otp, otp_expires]
+    )
+
+    await sendOtpEmail({ to: email, name: name.trim(), otp })
+
+    return res.status(201).json({
+      requiresVerification: true,
+      email: email.toLowerCase(),
+      message: 'Account created. Check your email for the 6-digit verification code.',
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   VERIFY EMAIL  — POST /api/v1/auth/verify-email
+   Body: { email, otp }
+───────────────────────────────────────────────────── */
+export async function verifyEmail(req, res, next) {
+  try {
+    const { email, otp } = req.body
+
     const result = await query(
-      `INSERT INTO users (name, email, password_hash)
-       VALUES ($1, $2, $3)
-       RETURNING id, name, email, role, avatar_url, created_at`,
-      [name.trim(), email.toLowerCase(), password_hash]
+      'SELECT * FROM users WHERE email = $1 AND is_active = TRUE',
+      [email.toLowerCase()]
     )
     const user = result.rows[0]
+    if (!user) return res.status(404).json({ error: 'Account not found.' })
 
-    const accessToken  = signAccessToken(user)
-    const refreshToken = signRefreshToken(user.id)
-    await saveRefreshToken(user.id, refreshToken)
+    if (user.email_verified) {
+      // Already verified — just issue tokens
+      const accessToken  = signAccessToken(user)
+      const refreshToken = signRefreshToken(user.id)
+      await saveRefreshToken(user.id, refreshToken)
+      setRefreshCookie(res, refreshToken)
+      return res.json({ user: userPublic(user), accessToken })
+    }
+
+    if (!user.otp_code || user.otp_code !== String(otp).trim()) {
+      return res.status(400).json({ error: 'Incorrect verification code.' })
+    }
+
+    if (!user.otp_expires_at || new Date(user.otp_expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Verification code has expired. Request a new one.' })
+    }
+
+    // Mark verified and clear OTP fields
+    const updated = await query(
+      `UPDATE users
+       SET email_verified = TRUE, otp_code = NULL, otp_expires_at = NULL, updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, name, email, role, avatar_url, created_at`,
+      [user.id]
+    )
+    const verifiedUser = updated.rows[0]
+
+    const accessToken  = signAccessToken(verifiedUser)
+    const refreshToken = signRefreshToken(verifiedUser.id)
+    await saveRefreshToken(verifiedUser.id, refreshToken)
     setRefreshCookie(res, refreshToken)
 
-    return res.status(201).json({ user: userPublic(user), accessToken })
+    return res.json({ user: userPublic(verifiedUser), accessToken })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   RESEND OTP  — POST /api/v1/auth/resend-otp
+   Body: { email }
+───────────────────────────────────────────────────── */
+export async function resendOtp(req, res, next) {
+  try {
+    const { email } = req.body
+
+    const result = await query(
+      'SELECT * FROM users WHERE email = $1 AND is_active = TRUE',
+      [email.toLowerCase()]
+    )
+    const user = result.rows[0]
+    if (!user) return res.status(404).json({ error: 'Account not found.' })
+    if (user.email_verified) return res.json({ message: 'Email already verified.' })
+
+    // Rate-limit resends: only if the old OTP has used at least half its TTL
+    const halfTtl = OTP_TTL_MS / 2
+    if (user.otp_expires_at && new Date(user.otp_expires_at) > new Date(Date.now() + halfTtl)) {
+      const secsLeft = Math.ceil((new Date(user.otp_expires_at) - Date.now()) / 1000) - (halfTtl / 1000)
+      return res.status(429).json({
+        error: `Please wait ${Math.ceil(secsLeft / 60)} minute(s) before requesting a new code.`,
+      })
+    }
+
+    const otp         = generateOtp()
+    const otp_expires = new Date(Date.now() + OTP_TTL_MS)
+
+    await query(
+      `UPDATE users SET otp_code = $1, otp_expires_at = $2, updated_at = NOW() WHERE id = $3`,
+      [otp, otp_expires, user.id]
+    )
+
+    await sendOtpEmail({ to: email, name: user.name, otp })
+
+    return res.json({ message: 'New verification code sent.' })
   } catch (err) {
     next(err)
   }
@@ -99,13 +203,62 @@ export async function login(req, res, next) {
     )
     const user = result.rows[0]
 
+    // Unknown email — same error as wrong password (prevents user enumeration)
     if (!user || !user.password_hash) {
       return res.status(401).json({ error: 'Invalid email or password.' })
     }
 
+    // Email not yet verified
+    if (!user.email_verified) {
+      return res.status(403).json({
+        error: 'Please verify your email before logging in.',
+        requiresVerification: true,
+        email: user.email,
+      })
+    }
+
+    // Account locked?
+    if (user.locked_until && new Date(user.locked_until) > new Date()) {
+      const minutesLeft = Math.ceil((new Date(user.locked_until) - Date.now()) / 60_000)
+      return res.status(429).json({
+        error: `Account locked. Too many failed attempts — try again in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}.`,
+      })
+    }
+
     const valid = await bcrypt.compare(password, user.password_hash)
+
     if (!valid) {
-      return res.status(401).json({ error: 'Invalid email or password.' })
+      const attempts   = (user.failed_login_attempts || 0) + 1
+      const shouldLock = attempts >= MAX_FAILED_ATTEMPTS
+      await query(
+        `UPDATE users
+         SET failed_login_attempts = $1,
+             locked_until          = $2,
+             updated_at            = NOW()
+         WHERE id = $3`,
+        [
+          attempts,
+          shouldLock ? new Date(Date.now() + LOCK_DURATION_MS) : null,
+          user.id,
+        ]
+      )
+      if (shouldLock) {
+        return res.status(429).json({
+          error: `Too many failed attempts. Account locked for 15 minutes.`,
+        })
+      }
+      const left = MAX_FAILED_ATTEMPTS - attempts
+      return res.status(401).json({
+        error: `Invalid email or password. ${left} attempt${left !== 1 ? 's' : ''} left before lockout.`,
+      })
+    }
+
+    // Correct password — clear any previous failure state
+    if (user.failed_login_attempts > 0 || user.locked_until) {
+      await query(
+        `UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = $1`,
+        [user.id]
+      )
     }
 
     const accessToken  = signAccessToken(user)
@@ -294,9 +447,9 @@ export async function devGoogleLogin(req, res, next) {
     if (!user) {
       // Auto-create on first use (seed script also does this, but this is a fallback)
       result = await query(
-        `INSERT INTO users (name, email, role, google_id)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role
+        `INSERT INTO users (name, email, role, google_id, email_verified)
+         VALUES ($1, $2, $3, $4, TRUE)
+         ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role, email_verified = TRUE
          RETURNING *`,
         [nameMap[role], email, role, `dev_google_${role}`]
       )
@@ -313,6 +466,108 @@ export async function devGoogleLogin(req, res, next) {
       accessToken,
       _devNote: `Signed in as ${role} (dev only — no real Google auth)`,
     })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   FORGOT PASSWORD  — POST /api/v1/auth/forgot-password
+   Body: { email }
+   Always returns success to prevent email enumeration.
+───────────────────────────────────────────────────── */
+export async function forgotPassword(req, res, next) {
+  try {
+    const { email } = req.body
+
+    const result = await query(
+      'SELECT * FROM users WHERE email = $1 AND is_active = TRUE AND email_verified = TRUE',
+      [email.toLowerCase()]
+    )
+    const user = result.rows[0]
+
+    // Always respond the same way — never reveal if email exists
+    const OK = res.json({ message: 'If that email is registered, a reset code has been sent.' })
+
+    if (!user || !user.password_hash) return OK  // OAuth-only or not found — silent
+
+    // Rate-limit: only send if no recent OTP or it's past the halfway mark
+    const halfTtl = OTP_TTL_MS / 2
+    if (user.otp_expires_at && new Date(user.otp_expires_at) > new Date(Date.now() + halfTtl)) {
+      return OK  // recent code still valid — silently skip
+    }
+
+    const otp         = generateOtp()
+    const otp_expires = new Date(Date.now() + OTP_TTL_MS)
+
+    await query(
+      `UPDATE users SET otp_code = $1, otp_expires_at = $2, updated_at = NOW() WHERE id = $3`,
+      [otp, otp_expires, user.id]
+    )
+
+    await sendPasswordResetEmail({ to: email, name: user.name, otp })
+
+    return OK
+  } catch (err) {
+    next(err)
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   RESET PASSWORD  — POST /api/v1/auth/reset-password
+   Body: { email, otp, newPassword }
+   Verifies OTP then sets the new password. Issues JWT
+   so the user is automatically logged in after reset.
+───────────────────────────────────────────────────── */
+export async function resetPassword(req, res, next) {
+  try {
+    const { email, otp, newPassword } = req.body
+
+    const result = await query(
+      'SELECT * FROM users WHERE email = $1 AND is_active = TRUE',
+      [email.toLowerCase()]
+    )
+    const user = result.rows[0]
+    if (!user) return res.status(404).json({ error: 'Account not found.' })
+
+    if (!user.password_hash) {
+      return res.status(400).json({ error: 'This account uses Google Sign-In. No password to reset.' })
+    }
+
+    if (!user.otp_code || user.otp_code !== String(otp).trim()) {
+      return res.status(400).json({ error: 'Incorrect reset code.' })
+    }
+
+    if (!user.otp_expires_at || new Date(user.otp_expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Reset code has expired. Request a new one.' })
+    }
+
+    const password_hash = await bcrypt.hash(newPassword, 12)
+
+    const updated = await query(
+      `UPDATE users
+       SET password_hash         = $1,
+           otp_code              = NULL,
+           otp_expires_at        = NULL,
+           failed_login_attempts = 0,
+           locked_until          = NULL,
+           updated_at            = NOW()
+       WHERE id = $2
+       RETURNING id, name, email, role, avatar_url, created_at`,
+      [password_hash, user.id]
+    )
+    const resetUser = updated.rows[0]
+
+    // Invalidate all existing refresh tokens (other sessions)
+    await query('DELETE FROM refresh_tokens WHERE user_id = $1', [user.id])
+
+    // Issue fresh tokens — auto-login after reset
+    const accessToken  = signAccessToken(resetUser)
+    const refreshToken = signRefreshToken(resetUser.id)
+    await saveRefreshToken(resetUser.id, refreshToken)
+    setRefreshCookie(res, refreshToken)
+
+    return res.json({ user: userPublic(resetUser), accessToken })
   } catch (err) {
     next(err)
   }

@@ -47,7 +47,7 @@ function SkeletonLoader() {
 /* ─────────────────────────────────────────────────────
    PREMIUM GATE
 ───────────────────────────────────────────────────── */
-function PurchaseGate({ navigate, slug, price = '₹99' }) {
+function PurchaseGate({ navigate, slug, price }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 px-8 text-center">
       <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center text-3xl mb-5">🔒</div>
@@ -63,7 +63,7 @@ function PurchaseGate({ navigate, slug, price = '₹99' }) {
           bg-gradient-to-br from-accent to-accent2 shadow-[0_4px_18px_rgba(245,130,10,0.35)]"
         whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
         onClick={() => navigate(`/checkout?type=note&slug=${slug}`)}>
-        Buy this Note — {price}
+        {price ? `Buy this Note — ${price}` : 'Unlock this Note →'}
       </motion.button>
       <p className="mt-3 text-[0.72rem] text-muted">One-time payment · 7-day refund guarantee</p>
     </div>
@@ -210,7 +210,7 @@ function NoteSidebar({ note, activePart, activeSection, onSectionClick, mobileOp
 export default function NotePage() {
   const { categoryId, slug } = useParams()
   const navigate = useNavigate()
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, owns } = useAuth()
 
   const [activePart, setActivePart]       = useState(0)
   const [activeSection, setActiveSection] = useState(null)
@@ -224,6 +224,7 @@ export default function NotePage() {
   const [partLoading, setPartLoading]     = useState(true)
   const [useStaticFallback, setUseStaticFallback] = useState(false)
   const [purchaseGated, setPurchaseGated] = useState(false)
+  const [notePrice, setNotePrice]         = useState(null)
 
   const note = getNoteWithCategories(slug)
   const cat  = CATEGORIES.find(c => c.id === categoryId)
@@ -246,6 +247,7 @@ export default function NotePage() {
     setPartBlocks(null)
     setUseStaticFallback(false)
     setPurchaseGated(false)
+    setNotePrice(null)
 
     api.getNotePart(slug, activePart)
       .then(({ data }) => {
@@ -254,13 +256,28 @@ export default function NotePage() {
       })
       .catch(err => {
         if (err.response?.status === 403) {
-          setPurchaseGated(true)
+          // If user already owns this note client-side, don't show the gate —
+          // the DB purchase may still be propagating. Treat as an access error.
+          if (owns('note', slug)) {
+            setUseStaticFallback(true)
+          } else {
+            setPurchaseGated(true)
+            // Fetch the actual price for this specific note from the API
+            api.getNote(slug)
+              .then(({ data: nd }) => {
+                const p = nd.note?.price
+                if (p != null) {
+                  setNotePrice(`₹${Math.round(p / 100).toLocaleString('en-IN')}`)
+                }
+              })
+              .catch(() => {})
+          }
         } else {
           setUseStaticFallback(true)
         }
         setPartLoading(false)
       })
-  }, [slug, activePart])
+  }, [slug, activePart, owns])
 
   /* ── Scroll to section after part loads ── */
   useEffect(() => {
@@ -397,7 +414,7 @@ export default function NotePage() {
               {partLoading ? (
                 <SkeletonLoader />
               ) : purchaseGated ? (
-                <PurchaseGate navigate={navigate} slug={slug}/>
+                <PurchaseGate navigate={navigate} slug={slug} price={notePrice}/>
               ) : partBlocks ? (
                 <div style={{ '--note-color': note.color }}>
                   <NoteRenderer blocks={partBlocks} sectionIds={currentSectionIds} />

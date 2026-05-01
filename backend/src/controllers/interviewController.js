@@ -62,6 +62,30 @@ export async function listQuestions(req, res, next) {
 
     const canAccessAll = isAdmin || hasPurchased
 
+    // Optional filters from query params
+    const { difficulty, company, tag, search } = req.query
+    const conditions = [`topic_id = $1`]
+    const params     = [topicSlug]
+
+    if (!canAccessAll) conditions.push(`is_premium = FALSE`)
+
+    if (difficulty && ['Easy', 'Medium', 'Hard'].includes(difficulty)) {
+      params.push(difficulty)
+      conditions.push(`difficulty = $${params.length}`)
+    }
+    if (company) {
+      params.push(JSON.stringify([company]))
+      conditions.push(`companies @> $${params.length}::jsonb`)
+    }
+    if (tag) {
+      params.push(JSON.stringify([tag]))
+      conditions.push(`tags @> $${params.length}::jsonb`)
+    }
+    if (search?.trim()) {
+      params.push(`%${search.trim().toLowerCase()}%`)
+      conditions.push(`LOWER(title) LIKE $${params.length}`)
+    }
+
     const result = await query(
       `SELECT id, topic_id, slug, title, description,
               difficulty, companies, tags, acceptance,
@@ -69,16 +93,15 @@ export async function listQuestions(req, res, next) {
               ${canAccessAll ? 'answer, code, hints, time_complexity, space_complexity,' : ''}
               created_at
        FROM interview_questions
-       WHERE topic_id = $1
-         ${canAccessAll ? '' : 'AND is_premium = FALSE'}
+       WHERE ${conditions.join(' AND ')}
        ORDER BY order_index ASC`,
-      [topicSlug]
+      params
     )
 
     return res.json({
-      topic:    topic.rows[0],
+      topic:     topic.rows[0],
       questions: result.rows,
-      access:   canAccessAll ? 'full' : 'free',
+      access:    canAccessAll ? 'full' : 'free',
     })
   } catch (err) {
     next(err)

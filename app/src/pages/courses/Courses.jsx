@@ -1,10 +1,12 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
 import Footer from '../../components/layout/Footer'
 import { COURSE_CATEGORIES, COURSES_DATA } from '../../data/courses'
 import { NoteIcon } from '../../data/icons'
+import { useAuth } from '../../hooks/useAuth'
+import { api } from '../../api/client'
 
 /* ── Star Rating ── */
 function Stars({ rating }) {
@@ -76,7 +78,7 @@ function CourseThumbnail({ course }) {
 }
 
 /* ── Course Card ── */
-function CourseCard({ course, slug, categoryId, index }) {
+function CourseCard({ course, slug, categoryId, index, isEnrolled, progress }) {
   const navigate = useNavigate()
   return (
     <motion.div
@@ -131,23 +133,57 @@ function CourseCard({ course, slug, categoryId, index }) {
         <Stars rating={course.rating}/>
       </div>
 
-      {/* Footer — price */}
-      <div className="px-4 py-3 border-t border-line flex items-center justify-between
-        bg-base/40">
-        <span className="text-[1.05rem] font-black text-navy">
-          {course.freeModules >= course.modules ? 'Free' : '₹999'}
-        </span>
-        <span className="text-[0.68rem] text-muted line-through">₹1,999</span>
-        <div className="flex items-center gap-1 text-[0.75rem] font-bold"
-          style={{ color: course.color }}>
-          {course.soon ? 'Coming Soon' : 'Enroll Now'}
-          {!course.soon && (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-          )}
-        </div>
+      {/* Footer — price / enrolled + progress */}
+      <div className="px-4 py-3 border-t border-line bg-base/40">
+        {isEnrolled ? (
+          <>
+            {/* Progress bar */}
+            {progress && (
+              <div className="mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[0.65rem] font-bold text-green-700">
+                    {progress.percentage}% complete
+                  </span>
+                  <span className="text-[0.62rem] text-muted">
+                    {progress.completedCount}/{progress.totalLessons}
+                  </span>
+                </div>
+                <div className="h-1.5 bg-base2 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-green-500 transition-all duration-500"
+                    style={{ width: `${progress.percentage}%` }}/>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-[0.82rem] font-black text-green-600">✓ Enrolled</span>
+              <div className="flex items-center gap-1 text-[0.75rem] font-bold"
+                style={{ color: course.color }}>
+                {progress?.percentage === 100 ? 'Review' : 'Continue'}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="text-[1.05rem] font-black text-navy">
+              {course.freeModules >= course.modules ? 'Free' : '₹999'}
+            </span>
+            <span className="text-[0.68rem] text-muted line-through">₹1,999</span>
+            <div className="flex items-center gap-1 text-[0.75rem] font-bold"
+              style={{ color: course.color }}>
+              {course.soon ? 'Coming Soon' : 'Enroll Now'}
+              {!course.soon && (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </motion.div>
   )
@@ -156,6 +192,15 @@ function CourseCard({ course, slug, categoryId, index }) {
 /* ── Courses Page ── */
 export default function Courses() {
   const [activeCategory, setActiveCategory] = useState('all')
+  const { owns, isLoggedIn } = useAuth()
+  const [myProgress, setMyProgress] = useState({})
+
+  useEffect(() => {
+    if (!isLoggedIn) return
+    api.getMyProgress()
+      .then(({ data }) => setMyProgress(data.progress || {}))
+      .catch(() => {})
+  }, [isLoggedIn])
 
   const filteredEntries = Object.entries(COURSES_DATA).filter(([, c]) =>
     activeCategory === 'all' || COURSE_CATEGORIES.find(
@@ -285,6 +330,8 @@ export default function Courses() {
                   slug={slug}
                   categoryId={getCatId(slug)}
                   index={i}
+                  isEnrolled={owns('course', slug)}
+                  progress={myProgress[slug] || null}
                 />
               ))}
             </motion.div>

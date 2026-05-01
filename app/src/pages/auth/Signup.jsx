@@ -1,7 +1,8 @@
-﻿import { useState } from 'react'
+﻿import { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../../store/authStore'
+import { api } from '../../api/client'
 
 const IS_DEV = import.meta.env.DEV
 
@@ -70,6 +71,128 @@ function DevRolePicker({ onSelect, onClose }) {
   )
 }
 
+/* ── OTP verification step ── */
+function OtpStep({ email, onSuccess }) {
+  const verifyEmail = useAuthStore(s => s.verifyEmail)
+  const [digits, setDigits]     = useState(['','','','','',''])
+  const [error, setError]       = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [resendMsg, setResendMsg] = useState('')
+  const inputs = useRef([])
+
+  const handleDigit = (i, val) => {
+    if (!/^\d?$/.test(val)) return
+    const next = [...digits]
+    next[i] = val
+    setDigits(next)
+    if (val && i < 5) inputs.current[i + 1]?.focus()
+  }
+
+  const handleKeyDown = (i, e) => {
+    if (e.key === 'Backspace' && !digits[i] && i > 0) {
+      inputs.current[i - 1]?.focus()
+    }
+  }
+
+  const handlePaste = (e) => {
+    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (text.length === 6) {
+      setDigits(text.split(''))
+      inputs.current[5]?.focus()
+    }
+  }
+
+  const handleVerify = async () => {
+    const otp = digits.join('')
+    if (otp.length < 6) { setError('Enter the full 6-digit code.'); return }
+    setLoading(true); setError('')
+    const result = await verifyEmail({ email, otp })
+    setLoading(false)
+    if (result.success) onSuccess()
+    else setError(result.error)
+  }
+
+  const handleResend = async () => {
+    setResendMsg(''); setError('')
+    try {
+      await api.resendOtp({ email })
+      setResendMsg('New code sent — check your inbox.')
+    } catch (e) {
+      setError(e.response?.data?.error || 'Failed to resend.')
+    }
+  }
+
+  return (
+    <div className="bg-white border border-line rounded-2xl p-7 sm:p-9
+      shadow-[0_4px_32px_rgba(18,18,58,0.07)]">
+
+      <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center
+        text-2xl mx-auto mb-5">
+        ✉️
+      </div>
+      <h1 className="text-[1.4rem] font-black text-navy text-center mb-1">Check your email</h1>
+      <p className="text-[0.82rem] text-muted text-center mb-6">
+        We sent a 6-digit code to <strong className="text-navy">{email}</strong>
+      </p>
+
+      {/* Digit inputs */}
+      <div className="flex gap-2.5 justify-center mb-5" onPaste={handlePaste}>
+        {digits.map((d, i) => (
+          <input
+            key={i}
+            ref={el => inputs.current[i] = el}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={d}
+            onChange={e => handleDigit(i, e.target.value)}
+            onKeyDown={e => handleKeyDown(i, e)}
+            className="w-11 h-14 text-center text-[1.4rem] font-black text-navy
+              border-2 rounded-xl outline-none transition-all
+              focus:border-accent focus:ring-2 focus:ring-accent/15
+              border-line bg-base"
+          />
+        ))}
+      </div>
+
+      <AnimatePresence>
+        {error && (
+          <motion.div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200
+            text-red-700 text-[0.8rem] font-semibold text-center"
+            initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            ⚠️ {error}
+          </motion.div>
+        )}
+        {resendMsg && (
+          <motion.div className="mb-4 px-4 py-3 rounded-xl bg-green-50 border border-green-200
+            text-green-700 text-[0.8rem] font-semibold text-center"
+            initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            ✓ {resendMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <button
+        onClick={handleVerify}
+        disabled={loading || digits.join('').length < 6}
+        className="w-full py-3.5 rounded-xl font-bold text-white text-[0.92rem]
+          bg-gradient-to-br from-accent to-accent2
+          shadow-[0_4px_14px_rgba(245,130,10,0.3)]
+          hover:opacity-90 transition-opacity disabled:opacity-50 mb-4">
+        {loading ? 'Verifying…' : 'Verify email →'}
+      </button>
+
+      <p className="text-center text-[0.78rem] text-muted">
+        Didn't receive it?{' '}
+        <button onClick={handleResend}
+          className="font-bold text-accent hover:opacity-70 transition-opacity">
+          Resend code
+        </button>
+      </p>
+    </div>
+  )
+}
+
 export default function Signup() {
   const navigate       = useNavigate()
   const signup         = useAuthStore(s => s.signup)
@@ -79,6 +202,7 @@ export default function Signup() {
   const [error, setError]         = useState('')
   const [loading, setLoading]     = useState(false)
   const [showDevPicker, setDevPicker] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState(null)  // null = step 1, string = step 2
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -106,8 +230,12 @@ export default function Signup() {
     })
     setLoading(false)
 
-    if (result.success) navigate('/dashboard')
-    else setError(result.error)
+    if (result.success) {
+      if (result.requiresVerification) setPendingEmail(result.email)
+      else navigate('/dashboard')
+    } else {
+      setError(result.error)
+    }
   }
 
   /* ── Google / Dev Google ── */
@@ -180,11 +308,14 @@ export default function Signup() {
             </div>
           </motion.div>
 
-          {/* Right — form */}
+          {/* Right — form or OTP step */}
           <motion.div className="w-full lg:w-[400px] shrink-0"
             initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}>
 
+            {pendingEmail ? (
+              <OtpStep email={pendingEmail} onSuccess={() => navigate('/dashboard')} />
+            ) : (
             <div className="bg-white border border-line rounded-2xl p-7 sm:p-9
               shadow-[0_4px_32px_rgba(18,18,58,0.07)]">
 
@@ -311,6 +442,7 @@ export default function Signup() {
                 </Link>
               </p>
             </div>
+            )}
           </motion.div>
         </div>
       </div>

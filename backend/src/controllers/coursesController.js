@@ -43,7 +43,10 @@ export async function getCourse(req, res, next) {
     const { slug } = req.params
 
     const courseResult = await query(
-      'SELECT * FROM courses WHERE slug = $1 AND is_published = TRUE',
+      `SELECT id, slug, title, tagline, description, thumbnail_url, price, is_published, soon,
+              color, icon_slug, instructor, level, duration_text,
+              lesson_count, module_count, free_modules, rating, highlights, module_titles
+       FROM courses WHERE slug = $1 AND is_published = TRUE`,
       [slug]
     )
     const course = courseResult.rows[0]
@@ -58,12 +61,14 @@ export async function getCourse(req, res, next) {
 
     // Check enrollment if user is logged in
     let isEnrolled = false
+    let completedLessonIds = []
     if (req.user) {
-      const enroll = await query(
-        'SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2',
-        [req.user.id, course.id]
-      )
+      const [enroll, progress] = await Promise.all([
+        query('SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2', [req.user.id, course.id]),
+        query('SELECT lesson_id FROM user_lesson_progress WHERE user_id = $1 AND course_id = $2', [req.user.id, course.id]),
+      ])
       isEnrolled = enroll.rows.length > 0
+      completedLessonIds = progress.rows.map(r => r.lesson_id)
     }
 
     const canAccessPremium = isPremiumUser || isEnrolled
@@ -76,15 +81,31 @@ export async function getCourse(req, res, next) {
         )
         return {
           ...section,
-          lessons: lessonsResult.rows,
+          lessons: lessonsResult.rows.map(l => ({
+            ...l,
+            completed: completedLessonIds.includes(l.id),
+          })),
         }
       })
     )
+
+    // Compute resume lesson (first uncompleted, in order)
+    const allLessons = sections.flatMap(s => s.lessons).sort((a, b) => a.order_index - b.order_index)
+    const totalLessons = allLessons.length
+    const completedCount = completedLessonIds.length
+    const resumeLesson = allLessons.find(l => !l.completed) || null
 
     return res.json({
       course: { ...course, sections },
       isEnrolled,
       canAccessPremium,
+      progress: {
+        completedCount,
+        totalLessons,
+        percentage: totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0,
+        resumeLessonId:    resumeLesson?.id    || null,
+        resumeLessonTitle: resumeLesson?.title || null,
+      },
     })
   } catch (err) {
     next(err)
@@ -132,6 +153,112 @@ export async function getLesson(req, res, next) {
     }
 
     return res.json({ lesson })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   POST /api/v1/courses/:slug/lessons/:lessonId/complete
+   Mark a lesson as completed for the authenticated user.
+   Requires enrollment or preview access.
+───────────────────────────────────────────────────── */
+export async function markLessonComplete(req, res, next) {
+  try {
+    const { slug, lessonId } = req.params
+
+    const courseResult = await query(
+      'SELECT id FROM courses WHERE slug = $1 AND is_published = TRUE',
+      [slug]
+    )
+    const course = courseResult.rows[0]
+    if (!course) return res.status(404).json({ error: 'Course not found.' })
+
+    // Verify lesson belongs to this course
+    const lessonResult = await query(
+      `SELECT l.id, l.is_preview FROM lessons l
+       JOIN sections s ON s.id = l.section_id
+       WHERE l.id = $1 AND s.course_id = $2`,
+      [lessonId, course.id]
+    )
+    const lesson = lessonResult.rows[0]
+    if (!lesson) return res.status(404).json({ error: 'Lesson not found.' })
+
+    // Must be enrolled (or preview lesson for anyone)
+    if (!lesson.is_preview) {
+      const enroll = await query(
+        'SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2',
+        [req.user.id, course.id]
+      )
+      if (!enroll.rows.length && req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Enroll in this course first.' })
+      }
+    }
+
+    // Upsert — idempotent
+    await query(
+      `INSERT INTO user_lesson_progress (user_id, lesson_id, course_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, lesson_id) DO NOTHING`,
+      [req.user.id, lessonId, course.id]
+    )
+
+    // Return updated progress
+    const [progressResult, totalResult] = await Promise.all([
+      query('SELECT COUNT(*) FROM user_lesson_progress WHERE user_id=$1 AND course_id=$2', [req.user.id, course.id]),
+      query(`SELECT COUNT(*) FROM lessons l JOIN sections s ON s.id=l.section_id WHERE s.course_id=$1`, [course.id]),
+    ])
+    const completedCount = parseInt(progressResult.rows[0].count)
+    const totalLessons   = parseInt(totalResult.rows[0].count)
+
+    return res.json({
+      message: 'Lesson marked complete.',
+      progress: {
+        completedCount,
+        totalLessons,
+        percentage: totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0,
+      },
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   GET /api/v1/courses/my-progress
+   Returns progress summary for all enrolled courses.
+   Keyed by course slug.
+───────────────────────────────────────────────────── */
+export async function getMyProgress(req, res, next) {
+  try {
+    // Get all enrolled courses with their total lesson counts
+    const enrolled = await query(
+      `SELECT c.id, c.slug,
+              COUNT(DISTINCT l.id)                                           AS total_lessons,
+              COUNT(DISTINCT ulp.lesson_id)                                  AS completed_count
+       FROM enrollments e
+       JOIN courses  c ON c.id = e.course_id
+       LEFT JOIN sections s   ON s.course_id = c.id
+       LEFT JOIN lessons  l   ON l.section_id = s.id
+       LEFT JOIN user_lesson_progress ulp
+              ON ulp.lesson_id = l.id AND ulp.user_id = $1
+       WHERE e.user_id = $1
+       GROUP BY c.id, c.slug`,
+      [req.user.id]
+    )
+
+    const progressMap = {}
+    for (const row of enrolled.rows) {
+      const total     = parseInt(row.total_lessons)
+      const completed = parseInt(row.completed_count)
+      progressMap[row.slug] = {
+        completedCount: completed,
+        totalLessons:   total,
+        percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+      }
+    }
+
+    return res.json({ progress: progressMap })
   } catch (err) {
     next(err)
   }

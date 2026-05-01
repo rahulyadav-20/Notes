@@ -30,20 +30,21 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         )
         if (result.rows[0]) return done(null, result.rows[0])
 
-        // 2. Existing user with same email — link Google account
+        // 2. Existing user with same email — link Google account + mark verified
         result = await query(
           `UPDATE users
-           SET google_id = $1, avatar_url = COALESCE(avatar_url, $2), updated_at = NOW()
+           SET google_id = $1, avatar_url = COALESCE(avatar_url, $2),
+               email_verified = TRUE, updated_at = NOW()
            WHERE email = $3 AND is_active = TRUE
            RETURNING *`,
           [googleId, avatarUrl, email]
         )
         if (result.rows[0]) return done(null, result.rows[0])
 
-        // 3. Brand-new user
+        // 3. Brand-new user — Google already verified the email
         result = await query(
-          `INSERT INTO users (name, email, google_id, avatar_url)
-           VALUES ($1, $2, $3, $4)
+          `INSERT INTO users (name, email, google_id, avatar_url, email_verified)
+           VALUES ($1, $2, $3, $4, TRUE)
            RETURNING *`,
           [name, email, googleId, avatarUrl]
         )

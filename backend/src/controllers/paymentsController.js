@@ -46,6 +46,29 @@ export async function createOrder(req, res, next) {
     let slug   = itemSlug || topicSlug || null
     let cId    = courseId || null
 
+    // For notes: look up title and per-note price override from DB
+    if (type === 'note') {
+      if (!slug) return res.status(400).json({ error: 'itemSlug required.' })
+      const noteRow = await query(
+        'SELECT title, price FROM notes_metadata WHERE slug = $1', [slug]
+      )
+      if (!noteRow.rows[0]) return res.status(404).json({ error: 'Note not found.' })
+      label = noteRow.rows[0].title
+      if (noteRow.rows[0].price != null) amount = noteRow.rows[0].price
+    }
+
+    // For interview topics: look up title and per-topic price override from DB
+    if (type === 'interview') {
+      if (!slug) return res.status(400).json({ error: 'topicSlug required.' })
+      const topicRow = await query(
+        'SELECT title, price FROM interview_topics WHERE slug = $1', [slug]
+      )
+      if (topicRow.rows[0]) {
+        label = topicRow.rows[0].title
+        if (topicRow.rows[0].price != null) amount = topicRow.rows[0].price
+      }
+    }
+
     // For courses, resolve slug → id if needed and use DB price
     if (type === 'course') {
       const whereClause = cId

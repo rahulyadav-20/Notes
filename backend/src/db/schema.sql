@@ -9,17 +9,22 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ── USERS ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name          TEXT NOT NULL,
-  email         TEXT NOT NULL UNIQUE,
-  password_hash TEXT,                         -- NULL for OAuth-only accounts
-  google_id     TEXT UNIQUE,
-  avatar_url    TEXT,
-  role          TEXT NOT NULL DEFAULT 'user'  -- 'user' | 'premium' | 'admin'
-                  CHECK (role IN ('user','premium','admin')),
-  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                  TEXT NOT NULL,
+  email                 TEXT NOT NULL UNIQUE,
+  password_hash         TEXT,                         -- NULL for OAuth-only accounts
+  google_id             TEXT UNIQUE,
+  avatar_url            TEXT,
+  role                  TEXT NOT NULL DEFAULT 'user'  -- 'user' | 'premium' | 'admin'
+                          CHECK (role IN ('user','premium','admin')),
+  is_active             BOOLEAN NOT NULL DEFAULT TRUE,
+  email_verified        BOOLEAN NOT NULL DEFAULT FALSE,
+  otp_code              TEXT,                          -- 6-digit code, NULL when not pending
+  otp_expires_at        TIMESTAMPTZ,                   -- NULL when not pending
+  failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+  locked_until          TIMESTAMPTZ,                  -- NULL = not locked
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email    ON users(email);
@@ -57,8 +62,21 @@ CREATE TABLE IF NOT EXISTS courses (
   slug          TEXT NOT NULL UNIQUE,
   title         TEXT NOT NULL,
   description   TEXT,
+  tagline       TEXT,
   thumbnail_url TEXT,
-  price         INTEGER NOT NULL DEFAULT 0,  -- paise (100 = ₹1)
+  color         TEXT    NOT NULL DEFAULT '#f5820a',
+  icon_slug     TEXT,
+  instructor    TEXT,
+  level         TEXT    NOT NULL DEFAULT 'Intermediate',
+  duration_text TEXT,
+  lesson_count  INTEGER NOT NULL DEFAULT 0,
+  module_count  INTEGER NOT NULL DEFAULT 0,
+  free_modules  INTEGER NOT NULL DEFAULT 1,
+  rating        NUMERIC(3,1) NOT NULL DEFAULT 4.5,
+  highlights    JSONB   NOT NULL DEFAULT '[]',
+  module_titles JSONB   NOT NULL DEFAULT '[]',
+  soon          BOOLEAN NOT NULL DEFAULT FALSE,
+  price         INTEGER NOT NULL DEFAULT 0,  -- paise
   is_published  BOOLEAN NOT NULL DEFAULT FALSE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -89,6 +107,18 @@ CREATE TABLE IF NOT EXISTS lessons (
 
 CREATE INDEX IF NOT EXISTS idx_lessons_section ON lessons(section_id);
 
+-- ── LESSON PROGRESS ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_lesson_progress (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  lesson_id    UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+  course_id    UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, lesson_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lesson_progress_user_course ON user_lesson_progress(user_id, course_id);
+
 -- ── ENROLLMENTS ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS enrollments (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -96,6 +126,7 @@ CREATE TABLE IF NOT EXISTS enrollments (
   course_id   UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   enrolled_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   payment_id  TEXT,
+  expires_at  TIMESTAMPTZ,
   UNIQUE (user_id, course_id)
 );
 
@@ -138,6 +169,32 @@ CREATE TABLE IF NOT EXISTS notes_metadata (
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Add display columns to courses if upgrading from older schema
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS tagline       TEXT;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS color         TEXT    NOT NULL DEFAULT '#f5820a';
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS icon_slug     TEXT;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS instructor    TEXT;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS level         TEXT    NOT NULL DEFAULT 'Intermediate';
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS duration_text TEXT;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS lesson_count  INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS module_count  INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS free_modules  INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS rating        NUMERIC(3,1) NOT NULL DEFAULT 4.5;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS highlights    JSONB   NOT NULL DEFAULT '[]';
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS module_titles JSONB   NOT NULL DEFAULT '[]';
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS soon          BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Prevent duplicate sections across re-seeds
+ALTER TABLE sections ADD COLUMN IF NOT EXISTS order_index INTEGER NOT NULL DEFAULT 0;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sections_course_order ON sections(course_id, order_index);
+
+-- Add brute-force protection + email verification columns to users if upgrading
+ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until          TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified        BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_code              TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expires_at        TIMESTAMPTZ;
+
 -- Add new columns to notes_metadata if upgrading from older schema
 ALTER TABLE notes_metadata ADD COLUMN IF NOT EXISTS tagline        TEXT;
 ALTER TABLE notes_metadata ADD COLUMN IF NOT EXISTS icon           TEXT;
@@ -148,6 +205,11 @@ ALTER TABLE notes_metadata ADD COLUMN IF NOT EXISTS sections_count INTEGER NOT N
 ALTER TABLE notes_metadata ADD COLUMN IF NOT EXISTS price          INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE notes_metadata ADD COLUMN IF NOT EXISTS free_parts     INTEGER NOT NULL DEFAULT 2;
 ALTER TABLE notes_metadata ADD COLUMN IF NOT EXISTS updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+-- Add expires_at to purchase/enrollment tables (missing from original schema)
+ALTER TABLE note_purchases        ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+ALTER TABLE interview_purchases   ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+ALTER TABLE enrollments           ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 
 -- ── INTERVIEW TOPICS ─────────────────────────────────────────
 -- Each topic is a purchasable pack of interview questions
@@ -192,11 +254,12 @@ CREATE INDEX IF NOT EXISTS idx_blog_published  ON blog_posts(is_published, publi
 -- ── NOTE PURCHASES (à la carte) ──────────────────────────────
 -- Tracks which user bought which individual note
 CREATE TABLE IF NOT EXISTS note_purchases (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  note_slug  TEXT NOT NULL,
-  payment_id TEXT,
-  amount     INTEGER NOT NULL,
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  note_slug    TEXT NOT NULL,
+  payment_id   TEXT,
+  amount       INTEGER NOT NULL,
+  expires_at   TIMESTAMPTZ,
   purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (user_id, note_slug)
 );
@@ -205,11 +268,12 @@ CREATE INDEX IF NOT EXISTS idx_note_purchase_user ON note_purchases(user_id);
 
 -- ── INTERVIEW PURCHASES (à la carte) ─────────────────────────
 CREATE TABLE IF NOT EXISTS interview_purchases (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  topic_slug TEXT NOT NULL,
-  payment_id TEXT,
-  amount     INTEGER NOT NULL,
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  topic_slug   TEXT NOT NULL,
+  payment_id   TEXT,
+  amount       INTEGER NOT NULL,
+  expires_at   TIMESTAMPTZ,
   purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (user_id, topic_slug)
 );

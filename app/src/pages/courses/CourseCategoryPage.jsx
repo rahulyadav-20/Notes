@@ -1,10 +1,12 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
 import Footer from '../../components/layout/Footer'
 import { getCourseCategoryWithCourses } from '../../data/courses'
 import { NoteIcon } from '../../data/icons'
+import { useAuth } from '../../hooks/useAuth'
+import { api } from '../../api/client'
 
 /* ── Star Rating ── */
 function Stars({ rating, count = null }) {
@@ -60,7 +62,7 @@ function MiniThumbnail({ course }) {
 }
 
 /* ── Course Row Card (list view) ── */
-function CourseRowCard({ course, categoryId, index }) {
+function CourseRowCard({ course, categoryId, index, isEnrolled, progress }) {
   const navigate = useNavigate()
   return (
     <motion.div
@@ -129,18 +131,44 @@ function CourseRowCard({ course, categoryId, index }) {
 
       {/* Price column */}
       <div className="hidden lg:flex flex-col items-end gap-2 shrink-0 ml-2">
-        <div className="text-[1.2rem] font-black text-navy">
-          {course.freeModules >= course.modules ? 'Free' : '₹999'}
-        </div>
-        {!(course.freeModules >= course.modules) && (
-          <div className="text-[0.75rem] text-muted line-through">₹1,999</div>
+        {isEnrolled ? (
+          <>
+            <span className="text-[0.9rem] font-black text-green-600">✓ Enrolled</span>
+            {progress && (
+              <div className="w-full mt-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[0.62rem] font-bold text-green-700">{progress.percentage}%</span>
+                  <span className="text-[0.6rem] text-muted">{progress.completedCount}/{progress.totalLessons}</span>
+                </div>
+                <div className="h-1.5 bg-base2 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-green-500"
+                    style={{ width: `${progress.percentage}%` }}/>
+                </div>
+              </div>
+            )}
+            <button
+              className="mt-2 px-5 py-2 rounded-xl text-[0.8rem] font-bold text-white
+                hover:opacity-90 transition-opacity"
+              style={{ background: course.color }}>
+              {progress?.percentage === 100 ? 'Review' : 'Continue →'}
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="text-[1.2rem] font-black text-navy">
+              {course.freeModules >= course.modules ? 'Free' : '₹999'}
+            </div>
+            {!(course.freeModules >= course.modules) && (
+              <div className="text-[0.75rem] text-muted line-through">₹1,999</div>
+            )}
+            <button
+              className={`mt-1 px-5 py-2 rounded-xl text-[0.8rem] font-bold text-white
+                transition-opacity ${course.soon ? 'opacity-50 cursor-default' : 'hover:opacity-90'}`}
+              style={{ background: course.color }}>
+              {course.soon ? 'Coming Soon' : 'Enroll Now'}
+            </button>
+          </>
         )}
-        <button
-          className={`mt-1 px-5 py-2 rounded-xl text-[0.8rem] font-bold text-white
-            transition-opacity ${course.soon ? 'opacity-50 cursor-default' : 'hover:opacity-90'}`}
-          style={{ background: course.color }}>
-          {course.soon ? 'Coming Soon' : 'Enroll Now'}
-        </button>
       </div>
     </motion.div>
   )
@@ -150,7 +178,16 @@ function CourseRowCard({ course, categoryId, index }) {
 export default function CourseCategoryPage() {
   const { categoryId } = useParams()
   const navigate       = useNavigate()
+  const { owns, isLoggedIn } = useAuth()
   const [levelFilter, setLevelFilter] = useState('All')
+  const [myProgress,  setMyProgress]  = useState({})
+
+  useEffect(() => {
+    if (!isLoggedIn) return
+    api.getMyProgress()
+      .then(({ data }) => setMyProgress(data.progress || {}))
+      .catch(() => {})
+  }, [isLoggedIn])
 
   const cat = getCourseCategoryWithCourses(categoryId)
 
@@ -296,6 +333,8 @@ export default function CourseCategoryPage() {
                       course={course}
                       categoryId={categoryId}
                       index={i}
+                      isEnrolled={owns('course', course.slug)}
+                      progress={myProgress[course.slug] || null}
                     />
                   ))
                 : (

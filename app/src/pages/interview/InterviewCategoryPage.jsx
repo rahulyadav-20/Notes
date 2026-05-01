@@ -117,13 +117,21 @@ export default function InterviewCategoryPage() {
   const { categoryId } = useParams()
   const navigate       = useNavigate()
   const { isAdmin, isLoggedIn } = useAuth()
-  const [filter,    setFilter]    = useState('All')
-  const [questions, setQuestions] = useState([])
-  const [access,    setAccess]    = useState('free')   // 'free' | 'full'
-  const [loading,   setLoading]   = useState(true)
-  const [liveCat,   setLiveCat]   = useState(null)
 
-  // Merge static config (icon, color, desc) with live counts from API
+  // Filter state
+  const [difficulty, setDifficulty] = useState('All')
+  const [company,    setCompany]    = useState(null)
+  const [tag,        setTag]        = useState(null)
+  const [search,     setSearch]     = useState('')
+  const [showMoreCo, setShowMoreCo] = useState(false)
+  const [showMoreTag,setShowMoreTag] = useState(false)
+
+  // Data state
+  const [questions,  setQuestions]  = useState([])
+  const [access,     setAccess]     = useState('free')
+  const [loading,    setLoading]    = useState(true)
+  const [liveCat,    setLiveCat]    = useState(null)
+
   const staticCat = INTERVIEW_CATEGORIES.find(c => c.id === categoryId)
   const cat = staticCat ? {
     ...staticCat,
@@ -132,10 +140,11 @@ export default function InterviewCategoryPage() {
     desc:           liveCat?.description     ?? staticCat.desc,
   } : null
 
+  // Fetch all questions once on mount; filtering is client-side for snappy UX
   useEffect(() => {
     setLoading(true)
     setQuestions([])
-    // Fetch live topic metadata + questions in parallel
+    setDifficulty('All'); setCompany(null); setTag(null); setSearch('')
     Promise.all([
       api.getInterviewQuestions(categoryId),
       api.getInterviewTopics(),
@@ -167,9 +176,34 @@ export default function InterviewCategoryPage() {
     )
   }
 
-  const filtered     = filter === 'All' ? questions : questions.filter(q => q.difficulty === filter)
-  const countByDiff  = d => questions.filter(q => q.difficulty === d).length
-  const totalLive    = questions.length
+  // Build company + tag lists from loaded questions (sorted by frequency)
+  const allCompanies = [...new Map(
+    questions.flatMap(q => q.companies || []).reduce((m, c) => {
+      m.set(c, (m.get(c) || 0) + 1); return m
+    }, new Map())
+  ).entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c)
+
+  const allTags = [...new Map(
+    questions.flatMap(q => q.tags || []).reduce((m, t) => {
+      m.set(t, (m.get(t) || 0) + 1); return m
+    }, new Map())
+  ).entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t)
+
+  // Client-side filtering
+  const filtered = questions.filter(q => {
+    if (difficulty !== 'All' && q.difficulty !== difficulty)         return false
+    if (company && !(q.companies || []).includes(company))           return false
+    if (tag     && !(q.tags     || []).includes(tag))               return false
+    if (search.trim() && !q.title.toLowerCase().includes(search.toLowerCase())) return false
+    return true
+  })
+
+  const countByDiff = d => questions.filter(q => q.difficulty === d).length
+  const totalLive   = questions.length
+  const hasFilters  = difficulty !== 'All' || company || tag || search.trim()
+
+  const CO_LIMIT  = showMoreCo  ? allCompanies.length : 6
+  const TAG_LIMIT = showMoreTag ? allTags.length      : 8
 
   return (
     <>
@@ -233,28 +267,61 @@ export default function InterviewCategoryPage() {
       <section className="py-10 lg:py-14 bg-base">
         <div className="max-w-[1300px] mx-auto px-6 sm:px-10 lg:px-16">
 
-          {/* Filter + column headers */}
+          {/* Filter + table */}
           <div className="bg-white border border-line rounded-2xl overflow-hidden">
 
-            {/* Filter bar */}
-            <div className="flex items-center justify-between gap-4 px-4 sm:px-6 py-4
-              border-b border-line flex-wrap bg-base/30">
-              <div className="flex items-center gap-2">
+            {/* ── Filter bar ── */}
+            <div className="px-4 sm:px-6 py-4 border-b border-line bg-base/30 flex flex-col gap-3">
+
+              {/* Row 1: search + count + clear */}
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1 max-w-[320px]">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted/50"
+                    width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search questions…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="w-full pl-8 pr-4 py-2 rounded-lg border border-line text-[0.82rem]
+                      text-navy placeholder:text-muted/50 outline-none bg-white
+                      focus:border-accent/50 focus:ring-2 focus:ring-accent/10 transition-all"
+                  />
+                </div>
+                <span className="text-[0.78rem] text-muted ml-auto whitespace-nowrap">
+                  {filtered.length} of {totalLive}
+                </span>
+                {hasFilters && (
+                  <button
+                    onClick={() => { setDifficulty('All'); setCompany(null); setTag(null); setSearch('') }}
+                    className="text-[0.72rem] font-bold text-accent hover:opacity-70 transition-opacity whitespace-nowrap">
+                    Clear ×
+                  </button>
+                )}
+              </div>
+
+              {/* Row 2: difficulty */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[0.63rem] font-bold uppercase tracking-wider text-muted/60 w-16 shrink-0">
+                  Difficulty
+                </span>
                 {['All', 'Easy', 'Medium', 'Hard'].map(d => {
                   const c = d === 'All' ? cat.color : DIFFICULTY_COLOR[d]
-                  const isActive = filter === d
+                  const isActive = difficulty === d
                   return (
                     <button key={d}
-                      className="px-3.5 py-1.5 rounded-lg text-[0.78rem] font-bold
-                        border transition-all"
+                      className="px-3 py-1 rounded-lg text-[0.75rem] font-bold border transition-all"
                       style={isActive
-                        ? { background: c, color: '#fff', borderColor: c, boxShadow: `0 2px 10px ${c}40` }
+                        ? { background: c, color: '#fff', borderColor: c }
                         : { background: '#fff', color: d === 'All' ? '#6b7280' : DIFFICULTY_COLOR[d], borderColor: '#e2e5f0' }
                       }
-                      onClick={() => setFilter(d)}>
+                      onClick={() => setDifficulty(d)}>
                       {d}
                       {d !== 'All' && (
-                        <span className={`ml-1.5 text-[0.65rem] ${isActive ? 'opacity-70' : 'opacity-50'}`}>
+                        <span className={`ml-1 text-[0.62rem] ${isActive ? 'opacity-70' : 'opacity-50'}`}>
                           {countByDiff(d)}
                         </span>
                       )}
@@ -262,9 +329,56 @@ export default function InterviewCategoryPage() {
                   )
                 })}
               </div>
-              <span className="text-[0.78rem] text-muted">
-                {filtered.length} question{filtered.length !== 1 ? 's' : ''}
-              </span>
+
+              {/* Row 3: company chips */}
+              {allCompanies.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[0.63rem] font-bold uppercase tracking-wider text-muted/60 w-16 shrink-0">
+                    Company
+                  </span>
+                  {allCompanies.slice(0, CO_LIMIT).map(c => (
+                    <button key={c}
+                      onClick={() => setCompany(company === c ? null : c)}
+                      className={`px-2.5 py-1 rounded-lg text-[0.72rem] font-semibold border transition-all
+                        ${company === c
+                          ? 'bg-navy text-white border-navy'
+                          : 'bg-white text-muted border-line hover:border-[var(--color-line-hover)]'}`}>
+                      {c}
+                    </button>
+                  ))}
+                  {allCompanies.length > 6 && (
+                    <button onClick={() => setShowMoreCo(s => !s)}
+                      className="text-[0.7rem] font-bold text-accent hover:opacity-70 transition-opacity">
+                      {showMoreCo ? 'less' : `+${allCompanies.length - 6} more`}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Row 4: tag chips */}
+              {allTags.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[0.63rem] font-bold uppercase tracking-wider text-muted/60 w-16 shrink-0">
+                    Tag
+                  </span>
+                  {allTags.slice(0, TAG_LIMIT).map(t => (
+                    <button key={t}
+                      onClick={() => setTag(tag === t ? null : t)}
+                      className={`px-2.5 py-1 rounded-lg text-[0.72rem] font-semibold border transition-all
+                        ${tag === t
+                          ? 'bg-[#6366F1] text-white border-[#6366F1]'
+                          : 'bg-white text-muted border-line hover:border-[var(--color-line-hover)]'}`}>
+                      {t}
+                    </button>
+                  ))}
+                  {allTags.length > 8 && (
+                    <button onClick={() => setShowMoreTag(s => !s)}
+                      className="text-[0.7rem] font-bold text-accent hover:opacity-70 transition-opacity">
+                      {showMoreTag ? 'less' : `+${allTags.length - 8} more`}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Column headers — desktop */}
@@ -283,9 +397,9 @@ export default function InterviewCategoryPage() {
 
             {/* Question list */}
             <AnimatePresence mode="wait">
-              <motion.div key={filter}
+              <motion.div key={`${difficulty}-${company}-${tag}-${search}`}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
                 {filtered.length > 0
                   ? filtered.map((q, i) => (
                       <QuestionRow key={q.slug} q={q} cat={cat} index={i}/>
@@ -293,7 +407,12 @@ export default function InterviewCategoryPage() {
                   : (
                     <div className="text-center py-16 text-muted">
                       <div className="text-4xl mb-3">🔍</div>
-                      <p>No {filter} questions yet</p>
+                      <p className="font-semibold mb-2">No questions match your filters</p>
+                      <button
+                        onClick={() => { setDifficulty('All'); setCompany(null); setTag(null); setSearch('') }}
+                        className="text-[0.8rem] font-bold text-accent hover:opacity-70 transition-opacity">
+                        Clear filters
+                      </button>
                     </div>
                   )
                 }

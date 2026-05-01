@@ -2,6 +2,7 @@
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../../store/authStore'
+import { api } from '../../api/client'
 
 const IS_DEV = import.meta.env.DEV
 
@@ -60,12 +61,13 @@ export default function Login() {
   const devGoogleLogin  = useAuthStore(s => s.devGoogleLogin)
   const [searchParams]  = useSearchParams()
 
-  const [form, setForm]         = useState({ email: '', password: '' })
-  const [error, setError]       = useState(
+  const [form, setForm]           = useState({ email: '', password: '' })
+  const [error, setError]         = useState(
     searchParams.get('error') === 'oauth' ? 'Google sign-in failed. Please try again.' : ''
   )
-  const [loading, setLoading]   = useState(false)
+  const [loading, setLoading]     = useState(false)
   const [showDevPicker, setDevPicker] = useState(false)
+  const [needsVerify, setNeedsVerify] = useState(null)  // email string when unverified
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -80,8 +82,17 @@ export default function Login() {
     const result = await login({ email: form.email.trim().toLowerCase(), password: form.password })
     setLoading(false)
 
-    if (result.success) navigate('/dashboard')
-    else setError(result.error)
+    if (result.success) {
+      navigate('/dashboard')
+    } else {
+      // Check for unverified email (403 from backend)
+      const data = result.rawData
+      if (data?.requiresVerification) {
+        setNeedsVerify(data.email || form.email)
+      } else {
+        setError(result.error)
+      }
+    }
   }
 
   /* ── Google / Dev Google ── */
@@ -219,6 +230,31 @@ export default function Login() {
               </div>
 
               <AnimatePresence>
+                {needsVerify && (
+                  <motion.div
+                    className="px-4 py-3 rounded-xl bg-amber-50 border border-amber-200
+                      text-amber-800 text-[0.8rem]"
+                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}>
+                    <p className="font-bold mb-1">📧 Email not verified</p>
+                    <p className="mb-2 font-medium">
+                      Please verify <strong>{needsVerify}</strong> before signing in.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await api.resendOtp({ email: needsVerify })
+                          setNeedsVerify(null)
+                          navigate(`/signup?verify=${encodeURIComponent(needsVerify)}`)
+                        } catch { /* ignore */ }
+                      }}
+                      className="text-[0.75rem] font-bold text-amber-700 underline
+                        hover:text-amber-900 transition-colors">
+                      Resend code & verify →
+                    </button>
+                  </motion.div>
+                )}
                 {error && (
                   <motion.div
                     className="flex items-center gap-2 px-4 py-3 rounded-xl

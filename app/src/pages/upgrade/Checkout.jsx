@@ -22,13 +22,26 @@ const TYPE_META = {
   course:    { icon: '🎓', label: 'Video Course',   color: '#f5820a' },
 }
 
+const NOTE_CATEGORY = {
+  kafka: 'data-engineer', spark: 'data-engineer', flink: 'data-engineer',
+  druid: 'data-engineer', gcp: 'data-engineer', 'data-modeling': 'data-engineer',
+  sql: 'data-engineer', 'machine-learning': 'data-science', langchain: 'ai',
+  kubernetes: 'devops', react: 'frontend', javascript: 'frontend',
+}
+
+function contentPath(type, slug) {
+  if (type === 'note')      return `/notes/${NOTE_CATEGORY[slug] || 'data-engineer'}/${slug}`
+  if (type === 'interview') return `/interview/${slug}`
+  return '/courses'
+}
+
 export default function Checkout() {
   const navigate       = useNavigate()
   const [params]       = useSearchParams()
   const type           = params.get('type') || 'note'
   const urlSlug        = params.get('slug') || params.get('itemSlug') || params.get('topicSlug') || null
 
-  const { user, isLoggedIn } = useAuth()
+  const { user, isLoggedIn, owns } = useAuth()
   const { init }       = useAuthStore()
 
   const [pricing,       setPricing]      = useState(null)
@@ -37,6 +50,7 @@ export default function Checkout() {
   const [selectedSlug,  setSelectedSlug] = useState(urlSlug) // the chosen item slug
   const [step,          setStep]         = useState('form')
   const [error,         setError]        = useState('')
+  const [alreadyOwned,  setAlreadyOwned] = useState(null)  // set to path when 409 received
   const [loading,       setLoading]      = useState(false)
 
   // Fetch plans + available items for this type
@@ -91,7 +105,7 @@ export default function Checkout() {
     ]).catch(() => {})
   }, [isLoggedIn, navigate, type])
 
-  // Selected item object
+  // Clear stale messages when selection changes
   const selectedItem = items.find(i => i.slug === selectedSlug)
   const meta         = TYPE_META[type] || TYPE_META.note
 
@@ -116,11 +130,12 @@ export default function Checkout() {
     if (!selectedSlug) { setError('Please select an item to purchase.'); return }
     setLoading(true)
     setError('')
+    setAlreadyOwned(null)
     try {
       const body = { type }
       if (type === 'note')      body.itemSlug  = selectedSlug
       if (type === 'interview') body.topicSlug = selectedSlug
-      if (type === 'course')    body.courseSlug = selectedSlug   // backend handles slug → id
+      if (type === 'course')    body.courseSlug = selectedSlug
 
       const { data: order } = await api.createOrder(body)
 
@@ -130,7 +145,11 @@ export default function Checkout() {
         await completePayment({ orderId: order.orderId, paymentId: `dummy_${Date.now()}`, signature: '' })
       }
     } catch (e) {
-      setError(e.response?.data?.error || 'Failed to create order.')
+      if (e.response?.status === 409) {
+        setAlreadyOwned(contentPath(type, selectedSlug))
+      } else {
+        setError(e.response?.data?.error || 'Failed to create order.')
+      }
       setLoading(false)
     }
   }
@@ -187,26 +206,41 @@ export default function Checkout() {
                   <div className="flex flex-col gap-1.5 max-h-[240px] overflow-y-auto pr-1">
                     {items.length === 0 ? (
                       <div className="h-8 bg-base rounded animate-pulse"/>
-                    ) : items.map(item => (
-                      <button key={item.slug}
-                        onClick={() => setSelectedSlug(item.slug)}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left
-                          border transition-all text-[0.82rem]
-                          ${selectedSlug === item.slug
-                            ? 'border-accent bg-accent/5 font-bold text-navy'
-                            : 'border-line hover:border-[var(--color-line-hover)] text-muted hover:text-navy'
-                          }`}>
-                        <span className="text-base shrink-0"
-                          style={{ color: item.color }}>{item.icon || meta.icon}</span>
-                        <span className="flex-1 truncate">{item.title}</span>
-                        {selectedSlug === item.slug && (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                            stroke="#f5820a" strokeWidth="3" strokeLinecap="round">
-                            <path d="M20 6L9 17l-5-5"/>
-                          </svg>
-                        )}
-                      </button>
-                    ))}
+                    ) : items.map(item => {
+                      const owned = owns(type === 'interview' ? 'interview' : type, item.slug)
+                      return (
+                        <div key={item.slug}
+                          onClick={() => {
+                            if (owned) { navigate(contentPath(type, item.slug)); return }
+                            setSelectedSlug(item.slug); setAlreadyOwned(null); setError('')
+                          }}
+                          className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left
+                            border transition-all text-[0.82rem] cursor-pointer
+                            ${owned
+                              ? 'border-green-200 bg-green-50 opacity-80'
+                              : selectedSlug === item.slug
+                                ? 'border-accent bg-accent/5 font-bold text-navy'
+                                : 'border-line hover:border-[var(--color-line-hover)] text-muted hover:text-navy'
+                            }`}>
+                          <span className="text-base shrink-0"
+                            style={{ color: item.color }}>{item.icon || meta.icon}</span>
+                          <span className={`flex-1 truncate ${owned ? 'text-green-800 font-semibold' : ''}`}>
+                            {item.title}
+                          </span>
+                          {owned ? (
+                            <span className="text-[0.6rem] font-bold px-2 py-0.5 rounded-full
+                              bg-green-100 text-green-700 border border-green-200 shrink-0">
+                              ✓ Owned
+                            </span>
+                          ) : selectedSlug === item.slug ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                              stroke="#f5820a" strokeWidth="3" strokeLinecap="round">
+                              <path d="M20 6L9 17l-5-5"/>
+                            </svg>
+                          ) : null}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               ) : (
@@ -315,6 +349,24 @@ export default function Checkout() {
                             No real payment. Click "Complete Purchase" to simulate and unlock the content.
                           </p>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Already owned — show friendly redirect instead of error */}
+                    {alreadyOwned && (
+                      <div className="mb-5 p-4 rounded-xl bg-green-50 border border-green-200">
+                        <p className="text-[0.85rem] font-bold text-green-800 mb-1">
+                          ✓ You already own this {meta.label.toLowerCase()}
+                        </p>
+                        <p className="text-[0.75rem] text-green-700 mb-3">
+                          Your access is still active — no need to buy again.
+                        </p>
+                        <button
+                          onClick={() => navigate(alreadyOwned)}
+                          className="px-4 py-2 rounded-lg text-[0.78rem] font-bold text-white
+                            bg-green-600 hover:bg-green-700 transition-colors">
+                          Go to {meta.label} →
+                        </button>
                       </div>
                     )}
 

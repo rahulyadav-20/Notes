@@ -19,6 +19,7 @@ const Blog                 = lazy(() => import('./pages/blog/Blog'))
 const BlogPost             = lazy(() => import('./pages/blog/BlogPost'))
 const Login                = lazy(() => import('./pages/auth/Login'))
 const Signup               = lazy(() => import('./pages/auth/Signup'))
+const ForgotPassword       = lazy(() => import('./pages/auth/ForgotPassword'))
 const Callback             = lazy(() => import('./pages/auth/Callback'))
 const Dashboard            = lazy(() => import('./pages/dashboard/Dashboard'))
 const Settings             = lazy(() => import('./pages/settings/Settings'))
@@ -53,6 +54,7 @@ export default function App() {
       {/* Auth */}
       <Route path="/login"                                  element={<Login />} />
       <Route path="/signup"                                 element={<Signup />} />
+      <Route path="/forgot-password"                        element={<ForgotPassword />} />
       <Route path="/auth/callback"                          element={<Callback />} />
 
       {/* Dashboard — requires login */}

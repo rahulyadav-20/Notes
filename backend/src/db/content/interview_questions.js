@@ -4,13 +4,16 @@
  * is_premium: false = shown to free users, true = requires purchase/premium
  */
 
+// All interview topic packs = ₹99 (9900 paise). Admin can override per-topic.
+const TOPIC_PRICE = 9900
+
 export const INTERVIEW_TOPICS = [
-  { slug: 'dsa',              title: 'DSA & Algorithms',   icon: '📐', color: '#EC4899', price: 29900, total_questions: 150, free_questions: 10, description: 'Arrays, trees, graphs, dynamic programming — patterns that crack top-tier interviews' },
-  { slug: 'system-design',    title: 'System Design',      icon: '🏛️', color: '#6366F1', price: 29900, total_questions: 60,  free_questions: 10, description: 'Design scalable distributed systems — the make-or-break round for senior engineers' },
-  { slug: 'data-engineering', title: 'Data Engineering',   icon: '🗄️', color: '#4A90D9', price: 29900, total_questions: 80,  free_questions: 10, description: 'Kafka, Spark, pipeline design & data architecture questions from top data teams' },
-  { slug: 'sql',              title: 'SQL',                icon: '🗃️', color: '#336791', price: 19900, total_questions: 70,  free_questions: 10, description: 'Window functions, CTEs, joins & query optimisation — asked everywhere' },
-  { slug: 'machine-learning', title: 'Machine Learning',   icon: '🤖', color: '#8B5CF6', price: 29900, total_questions: 60,  free_questions: 10, description: 'Model evaluation, feature engineering, MLOps & ML system design' },
-  { slug: 'behavioral',       title: 'Behavioural',        icon: '💬', color: '#10B981', price: 14900, total_questions: 50,  free_questions: 10, description: 'Leadership, conflict, impact — behavioural questions for Staff+ roles' },
+  { slug: 'dsa',              title: 'DSA & Algorithms',   icon: '📐', color: '#EC4899', price: TOPIC_PRICE, total_questions: 150, free_questions: 10, description: 'Arrays, trees, graphs, dynamic programming — patterns that crack top-tier interviews' },
+  { slug: 'system-design',    title: 'System Design',      icon: '🏛️', color: '#6366F1', price: TOPIC_PRICE, total_questions: 60,  free_questions: 10, description: 'Design scalable distributed systems — the make-or-break round for senior engineers' },
+  { slug: 'data-engineering', title: 'Data Engineering',   icon: '🗄️', color: '#4A90D9', price: TOPIC_PRICE, total_questions: 80,  free_questions: 10, description: 'Kafka, Spark, pipeline design & data architecture questions from top data teams' },
+  { slug: 'sql',              title: 'SQL',                icon: '🗃️', color: '#336791', price: TOPIC_PRICE, total_questions: 70,  free_questions: 10, description: 'Window functions, CTEs, joins & query optimisation — asked everywhere' },
+  { slug: 'machine-learning', title: 'Machine Learning',   icon: '🤖', color: '#8B5CF6', price: TOPIC_PRICE, total_questions: 60,  free_questions: 10, description: 'Model evaluation, feature engineering, MLOps & ML system design' },
+  { slug: 'behavioral',       title: 'Behavioural',        icon: '💬', color: '#10B981', price: TOPIC_PRICE, total_questions: 50,  free_questions: 10, description: 'Leadership, conflict, impact — behavioural questions for Staff+ roles' },
 ]
 
 export const INTERVIEW_QUESTIONS = [

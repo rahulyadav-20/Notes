@@ -1,11 +1,12 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../../components/layout/Navbar'
 import Footer from '../../components/layout/Footer'
-import { getCourseBySlug } from '../../data/courses'
+import { getCourseBySlug } from '../../data/courses'   // fallback for un-seeded fields only
 import { NoteIcon } from '../../data/icons'
 import { useAuth } from '../../hooks/useAuth'
+import { api } from '../../api/client'
 
 /* ── Star Rating ── */
 function Stars({ rating }) {
@@ -35,106 +36,145 @@ function Check({ color }) {
 }
 
 /* ── Curriculum Accordion ── */
-function CurriculumAccordion({ modules, course }) {
+function CurriculumAccordion({ sections, course, courseSlug, isEnrolled, onComplete }) {
   const [open, setOpen] = useState(0)
 
-  // Generate fake lesson titles per module
-  const generateLessons = (moduleTitle, count) => {
-    const prefixes = ['Introduction to', 'Deep Dive:', 'Hands-on:', 'Understanding', 'Building', 'Optimizing', 'Production']
-    const lessons = []
-    for (let i = 0; i < Math.min(count, 6); i++) {
-      lessons.push(`${prefixes[i % prefixes.length]} ${moduleTitle.split(' ')[0]} ${i > 0 ? `— Part ${i + 1}` : ''}`)
-    }
-    return lessons
-  }
+  // Fallback to static module titles if no DB sections yet
+  const items = sections?.length
+    ? sections
+    : (course.moduleTitles || []).map((title, i) => ({ title, order_index: i, lessons: [] }))
 
   return (
     <div className="flex flex-col gap-2">
-      {modules.map((title, i) => (
-        <div key={i} className="border border-line rounded-xl overflow-hidden bg-white">
-          <button
-            className="w-full flex items-center justify-between px-5 py-4 text-left
-              hover:bg-base/40 transition-colors"
-            onClick={() => setOpen(open === i ? -1 : i)}>
-            <div className="flex items-center gap-3">
-              <span className="w-7 h-7 rounded-lg flex items-center justify-center
-                text-[0.7rem] font-black shrink-0"
-                style={{
-                  background: open === i
-                    ? `color-mix(in srgb, ${course.color} 15%, #f0f2ff)`
-                    : '#f3f4f8',
-                  color: open === i ? course.color : '#6b7280',
-                }}>
-                {i + 1}
-              </span>
-              <span className={`text-[0.88rem] font-bold leading-snug
-                ${open === i ? 'text-navy' : 'text-navy/80'}`}>
-                {title}
-              </span>
-            </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-              className={`text-muted shrink-0 transition-transform duration-200
-                ${open === i ? 'rotate-180' : ''}`}>
-              <path d="M6 9l6 6 6-6"/>
-            </svg>
-          </button>
+      {items.map((section, i) => {
+        const sectionLessons = section.lessons || []
+        const sectionCompleted = sectionLessons.filter(l => l.completed).length
+        return (
+          <div key={section.id || i} className="border border-line rounded-xl overflow-hidden bg-white">
+            <button
+              className="w-full flex items-center justify-between px-5 py-4 text-left
+                hover:bg-base/40 transition-colors"
+              onClick={() => setOpen(open === i ? -1 : i)}>
+              <div className="flex items-center gap-3">
+                <span className="w-7 h-7 rounded-lg flex items-center justify-center
+                  text-[0.7rem] font-black shrink-0"
+                  style={{
+                    background: open === i ? `color-mix(in srgb, ${course.color} 15%, #f0f2ff)` : '#f3f4f8',
+                    color: open === i ? course.color : '#6b7280',
+                  }}>
+                  {i + 1}
+                </span>
+                <span className={`text-[0.88rem] font-bold leading-snug ${open === i ? 'text-navy' : 'text-navy/80'}`}>
+                  {section.title}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                {sectionLessons.length > 0 && (
+                  <span className="text-[0.65rem] font-semibold text-muted">
+                    {sectionCompleted}/{sectionLessons.length}
+                  </span>
+                )}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                  className={`text-muted transition-transform duration-200 ${open === i ? 'rotate-180' : ''}`}>
+                  <path d="M6 9l6 6 6-6"/>
+                </svg>
+              </div>
+            </button>
 
-          <AnimatePresence>
-            {open === i && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}>
-                <div className="border-t border-line">
-                  {generateLessons(title, Math.ceil(course.lessons / modules.length)).map((lesson, j) => (
-                    <div key={j}
-                      className="flex items-center gap-3 px-5 py-3 border-b border-line/60
-                        last:border-0 hover:bg-base/30 transition-colors">
-                      <div className="w-7 h-7 rounded-lg bg-base flex items-center justify-center shrink-0">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                          className="text-muted">
-                          <circle cx="12" cy="12" r="10"/>
-                          <path d="M10 8l6 4-6 4V8z" fill="currentColor" stroke="none"/>
-                        </svg>
-                      </div>
-                      <span className="text-[0.82rem] text-navy/70 flex-1">{lesson}</span>
-                      {j === 0 ? (
-                        <span className="text-[0.62rem] font-bold text-green-600
-                          bg-green-50 border border-green-200 px-2 py-0.5 rounded-md shrink-0">
-                          Free preview
+            <AnimatePresence>
+              {open === i && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}>
+                  <div className="border-t border-line">
+                    {sectionLessons.length === 0 ? (
+                      <p className="px-5 py-4 text-[0.78rem] text-muted italic">
+                        Lessons coming soon
+                      </p>
+                    ) : sectionLessons.map((lesson, j) => (
+                      <div key={lesson.id}
+                        className="flex items-center gap-3 px-5 py-3 border-b border-line/60
+                          last:border-0 hover:bg-base/30 transition-colors">
+
+                        {/* Completed / play icon */}
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0
+                          ${lesson.completed
+                            ? 'bg-green-100'
+                            : 'bg-base'}`}>
+                          {lesson.completed ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                              stroke="#10B981" strokeWidth="2.5" strokeLinecap="round">
+                              <path d="M20 6L9 17l-5-5"/>
+                            </svg>
+                          ) : (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                              stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                              className="text-muted">
+                              <circle cx="12" cy="12" r="10"/>
+                              <path d="M10 8l6 4-6 4V8z" fill="currentColor" stroke="none"/>
+                            </svg>
+                          )}
+                        </div>
+
+                        <span className={`text-[0.82rem] flex-1 ${lesson.completed ? 'text-muted line-through' : 'text-navy/80'}`}>
+                          {lesson.title}
                         </span>
-                      ) : (
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                          className="text-muted/50 shrink-0">
-                          <rect x="3" y="11" width="18" height="11" rx="2"/>
-                          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                        </svg>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      ))}
+
+                        {/* Duration */}
+                        {lesson.duration_seconds > 0 && (
+                          <span className="text-[0.65rem] text-muted/60 shrink-0">
+                            {Math.floor(lesson.duration_seconds / 60)}m
+                          </span>
+                        )}
+
+                        {/* Badge / mark-complete */}
+                        {lesson.is_preview ? (
+                          <span className="text-[0.62rem] font-bold text-green-600
+                            bg-green-50 border border-green-200 px-2 py-0.5 rounded-md shrink-0">
+                            Free preview
+                          </span>
+                        ) : isEnrolled && !lesson.completed ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onComplete(lesson.id) }}
+                            className="text-[0.62rem] font-bold text-accent hover:opacity-70
+                              transition-opacity shrink-0 whitespace-nowrap">
+                            Mark done
+                          </button>
+                        ) : !isEnrolled ? (
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                            className="text-muted/50 shrink-0">
+                            <rect x="3" y="11" width="18" height="11" rx="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                          </svg>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )
+      })}
     </div>
   )
 }
 
 /* ── Enrollment Card (sticky sidebar) ── */
-function EnrollCard({ course }) {
+function EnrollCard({ course, progress }) {
   const navigate  = useNavigate()
   const { isAdmin, isLoggedIn, owns } = useAuth()
   const isFree    = course.freeModules >= course.modules
-  // owns may be undefined if store hasn't hydrated — default to false
   const enrolled  = isAdmin || (typeof owns === 'function' && owns('course', course.slug))
   const price     = isFree ? 'Free' : '₹999'
   const catId     = course.category?.id || 'courses'
+  const pct       = progress?.percentage ?? 0
+  const completed = progress?.completedCount ?? 0
+  const total     = progress?.totalLessons ?? 0
 
   function handleEnroll() {
     if (isFree || enrolled) return
@@ -174,9 +214,30 @@ function EnrollCard({ course }) {
       {/* Price + CTA */}
       <div className="p-5">
         {enrolled ? (
-          <div className="flex items-center gap-2 mb-4 p-3 rounded-xl bg-green-50 border border-green-200">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-            <span className="text-[0.82rem] font-bold text-green-700">You have access to this course</span>
+          <div className="mb-4">
+            {/* Progress bar */}
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[0.72rem] font-bold text-navy">{pct}% complete</span>
+              <span className="text-[0.68rem] text-muted">{completed}/{total} lessons</span>
+            </div>
+            <div className="h-2 bg-base2 rounded-full overflow-hidden mb-3">
+              <motion.div
+                className="h-full rounded-full bg-green-500"
+                initial={{ width: 0 }}
+                animate={{ width: `${pct}%` }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+              />
+            </div>
+            {progress?.resumeLessonTitle && pct < 100 && (
+              <p className="text-[0.7rem] text-muted mb-3">
+                Next: <strong className="text-navy">{progress.resumeLessonTitle}</strong>
+              </p>
+            )}
+            {pct === 100 && (
+              <p className="text-[0.75rem] font-bold text-green-700 mb-3">
+                🎉 Course complete!
+              </p>
+            )}
           </div>
         ) : (
           <div className="flex items-baseline gap-3 mb-4">
@@ -195,7 +256,10 @@ function EnrollCard({ course }) {
           className="w-full py-3.5 rounded-xl font-bold text-white text-[0.95rem]
             transition-opacity hover:opacity-90 mb-3"
           style={{ background: `linear-gradient(135deg, ${course.color}, color-mix(in srgb, ${course.color} 70%, #ec4899))` }}>
-          {enrolled ? 'Continue Learning →'
+          {enrolled
+            ? (progress?.resumeLessonTitle && pct < 100
+                ? `Resume →`
+                : pct === 100 ? 'Review Course' : 'Continue Learning →')
             : isFree ? 'Start Free'
             : 'Buy Course — ₹999'}
         </button>
@@ -249,13 +313,69 @@ function EnrollCard({ course }) {
 /* ── Course Page ── */
 export default function CoursePage() {
   const { categoryId, slug } = useParams()
-  const navigate = useNavigate()
+  const navigate   = useNavigate()
+  const { isLoggedIn } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
+  const [apiData,   setApiData]   = useState(null)   // { sections, progress, isEnrolled }
 
-  const course = getCourseBySlug(slug)
+  const staticCourse = getCourseBySlug(slug)   // local fallback while API loads
+
+  // Fetch everything from the API — sections, progress, AND display fields
+  useEffect(() => {
+    if (!slug) return
+    setApiData(null)
+    api.getCourse(slug)
+      .then(({ data }) => {
+        if (!data.course) return
+        setApiData({
+          course:     data.course,             // all DB fields including display
+          sections:   data.course.sections || [],
+          progress:   data.progress        || null,
+          isEnrolled: data.isEnrolled      || false,
+        })
+      })
+      .catch(() => {})
+  }, [slug, isLoggedIn])
+
+  // Merge: API data takes precedence, static fills gaps while loading
+  const course = apiData?.course
+    ? {
+        ...staticCourse,                    // keep local fields not yet in DB (e.g. iconSlug)
+        ...apiData.course,
+        name:         apiData.course.title,
+        color:        apiData.course.color,
+        tagline:      apiData.course.tagline,
+        highlights:   apiData.course.highlights  || staticCourse?.highlights  || [],
+        moduleTitles: apiData.course.module_titles || staticCourse?.moduleTitles || [],
+        instructor:   apiData.course.instructor,
+        level:        apiData.course.level,
+        duration:     apiData.course.duration_text,
+        rating:       parseFloat(apiData.course.rating) || staticCourse?.rating,
+        lessons:      apiData.course.lesson_count  || staticCourse?.lessons,
+        modules:      apiData.course.module_count  || staticCourse?.modules,
+      }
+    : staticCourse
+
+  const handleMarkComplete = useCallback(async (lessonId) => {
+    try {
+      const { data } = await api.markLessonComplete(slug, lessonId)
+      // Optimistically mark the lesson done and update progress
+      setApiData(prev => {
+        if (!prev) return prev
+        const sections = prev.sections.map(s => ({
+          ...s,
+          lessons: s.lessons.map(l =>
+            l.id === lessonId ? { ...l, completed: true } : l
+          ),
+        }))
+        return { ...prev, sections, progress: { ...prev.progress, ...data.progress } }
+      })
+    } catch { /* ignore */ }
+  }, [slug])
 
   if (!course) {
-    return (
+    // Both static and API data missing — hard 404
+    if (staticCourse === null && apiData === null) return (
       <>
         <Navbar />
         <div className="text-center py-20 px-10 text-muted">
@@ -267,6 +387,15 @@ export default function CoursePage() {
           </button>
         </div>
         <Footer />
+      </>
+    )
+    // API loading — show minimal skeleton
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen bg-base flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full border-2 border-accent/30 border-t-accent animate-spin"/>
+        </div>
       </>
     )
   }
@@ -376,7 +505,7 @@ export default function CoursePage() {
             <motion.div className="hidden lg:block w-[350px] shrink-0"
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}>
-              <EnrollCard course={course}/>
+              <EnrollCard course={course} progress={apiData?.progress}/>
             </motion.div>
           </div>
         </div>
@@ -498,7 +627,13 @@ export default function CoursePage() {
                           {course.modules} modules · {course.lessons} lessons · {course.duration}
                         </span>
                       </div>
-                      <CurriculumAccordion modules={course.moduleTitles} course={course}/>
+                      <CurriculumAccordion
+                        sections={apiData?.sections}
+                        course={course}
+                        courseSlug={slug}
+                        isEnrolled={apiData?.isEnrolled || false}
+                        onComplete={handleMarkComplete}
+                      />
                     </div>
                   )}
 
@@ -630,7 +765,7 @@ export default function CoursePage() {
 
             {/* ── Right: sticky enrollment card (desktop) ── */}
             <div className="hidden lg:block w-[350px] shrink-0 sticky top-[120px]">
-              <EnrollCard course={course}/>
+              <EnrollCard course={course} progress={apiData?.progress}/>
             </div>
 
           </div>

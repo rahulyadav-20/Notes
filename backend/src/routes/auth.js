@@ -28,6 +28,25 @@ router.post('/login',
   ctrl.login
 )
 
+/* ── POST /api/v1/auth/verify-email ── */
+router.post('/verify-email',
+  [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email required.'),
+    body('otp').trim().isLength({ min: 6, max: 6 }).isNumeric().withMessage('6-digit OTP required.'),
+    validate,
+  ],
+  ctrl.verifyEmail
+)
+
+/* ── POST /api/v1/auth/resend-otp ── */
+router.post('/resend-otp',
+  [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email required.'),
+    validate,
+  ],
+  ctrl.resendOtp
+)
+
 /* ── POST /api/v1/auth/logout ── */
 router.post('/logout', requireAuth, ctrl.logout)
 
@@ -46,6 +65,26 @@ router.get('/google',
 router.get('/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: '/login' }),
   ctrl.googleCallback
+)
+
+/* ── POST /api/v1/auth/forgot-password ── */
+router.post('/forgot-password',
+  [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email required.'),
+    validate,
+  ],
+  ctrl.forgotPassword
+)
+
+/* ── POST /api/v1/auth/reset-password ── */
+router.post('/reset-password',
+  [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email required.'),
+    body('otp').trim().isLength({ min: 6, max: 6 }).isNumeric().withMessage('6-digit code required.'),
+    body('newPassword').isLength({ min: 8 }).withMessage('Password must be at least 8 characters.'),
+    validate,
+  ],
+  ctrl.resetPassword
 )
 
 /* ── PATCH /api/v1/auth/change-password ── */

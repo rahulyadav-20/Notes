@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
 import { useAuthStore } from '../../store/authStore'
+import SearchBar from './SearchBar'
 
 const NAV_LINKS = [
   { label: 'Notes',     path: '/notes',     soon: false },
@@ -12,7 +13,7 @@ const NAV_LINKS = [
 ]
 
 /* ── User avatar dropdown ── */
-function UserMenu({ user, isPremium, navigate, logout }) {
+function UserMenu({ user, isPremium, isAdmin, purchasesLoading, navigate, logout }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -39,9 +40,14 @@ function UserMenu({ user, isPremium, navigate, logout }) {
         </div>
         <div className="hidden sm:flex flex-col items-start leading-none">
           <span className="text-[0.78rem] font-bold text-navy">{user.name?.split(' ')[0]}</span>
-          {isPremium && (
-            <span className="text-[0.58rem] font-bold text-amber-500">Premium</span>
-          )}
+          {purchasesLoading
+            ? <span className="mt-0.5 w-8 h-2 rounded bg-base2 animate-pulse"/>
+            : isAdmin
+              ? <span className="text-[0.58rem] font-bold text-purple-500">Admin</span>
+              : isPremium
+                ? <span className="text-[0.58rem] font-bold text-green-600">Active</span>
+                : null
+          }
         </div>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
@@ -65,13 +71,20 @@ function UserMenu({ user, isPremium, navigate, logout }) {
             <div className="px-4 py-3 border-b border-line">
               <div className="text-[0.82rem] font-bold text-navy">{user.name}</div>
               <div className="text-[0.68rem] text-muted truncate">{user.email}</div>
-              <div className={`inline-flex items-center gap-1 mt-1.5 text-[0.6rem] font-bold
-                px-2 py-0.5 rounded-full
-                ${isPremium
-                  ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                  : 'bg-base2 text-muted border border-line'}`}>
-                {isPremium ? '⭐ Premium' : '🆓 Free Plan'}
-              </div>
+              {purchasesLoading
+                ? <div className="mt-1.5 w-16 h-4 rounded-full bg-base2 animate-pulse"/>
+                : (
+                  <div className={`inline-flex items-center gap-1 mt-1.5 text-[0.6rem] font-bold
+                    px-2 py-0.5 rounded-full border
+                    ${isAdmin
+                      ? 'bg-purple-100 text-purple-700 border-purple-200'
+                      : isPremium
+                        ? 'bg-green-50 text-green-700 border-green-200'
+                        : 'bg-base2 text-muted border-line'}`}>
+                    {isAdmin ? '🔑 Admin' : isPremium ? '✓ Active' : '🆓 Free Plan'}
+                  </div>
+                )
+              }
             </div>
 
             {/* Menu items */}
@@ -92,14 +105,14 @@ function UserMenu({ user, isPremium, navigate, logout }) {
               ))}
             </div>
 
-            {/* Upgrade (free users) */}
-            {!isPremium && (
+            {/* Buy more / upgrade CTA (not for admins) */}
+            {!isAdmin && (
               <div className="px-3 pb-2">
                 <button
                   className="w-full py-2 rounded-xl text-[0.8rem] font-bold text-white
                     bg-gradient-to-br from-accent to-accent2 hover:opacity-90 transition-opacity"
                   onClick={() => { navigate('/upgrade'); setOpen(false) }}>
-                  ⚡ Upgrade to Premium
+                  {isPremium ? '🛒 Buy More Content' : '⚡ Browse & Buy'}
                 </button>
               </div>
             )}
@@ -126,7 +139,7 @@ export default function Navbar() {
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
 
-  const { user, isLoggedIn, isPremium } = useAuth()
+  const { user, isLoggedIn, isPremium, isAdmin, purchasesLoading } = useAuth()
   const logout = useAuthStore(s => s.logout)
 
   const isActive = (path) => pathname !== '/' && pathname.startsWith(path)
@@ -180,10 +193,15 @@ export default function Navbar() {
             ))}
           </div>
 
+          {/* Search bar (desktop) */}
+          <div className="hidden lg:block ml-auto">
+            <SearchBar />
+          </div>
+
           {/* Auth area (desktop) */}
-          <div className="hidden lg:flex items-center gap-2.5 ml-auto shrink-0">
+          <div className="hidden lg:flex items-center gap-2.5 shrink-0">
             {isLoggedIn && user ? (
-              <UserMenu user={user} isPremium={isPremium} navigate={navigate} logout={logout}/>
+              <UserMenu user={user} isPremium={isPremium} isAdmin={isAdmin} purchasesLoading={purchasesLoading} navigate={navigate} logout={logout}/>
             ) : (
               <>
                 <motion.button
@@ -203,9 +221,14 @@ export default function Navbar() {
             )}
           </div>
 
+          {/* Search icon (mobile) */}
+          <div className="lg:hidden ml-auto mr-2">
+            <SearchBar />
+          </div>
+
           {/* Hamburger (mobile) */}
           <button
-            className="lg:hidden ml-auto flex flex-col justify-center items-center gap-[5px] w-9 h-9 rounded-lg border border-line hover:bg-base2 transition-colors shrink-0 p-0"
+            className="lg:hidden flex flex-col justify-center items-center gap-[5px] w-9 h-9 rounded-lg border border-line hover:bg-base2 transition-colors shrink-0 p-0"
             onClick={() => setOpen(o => !o)} aria-label="Toggle menu">
             <span className={`block w-4 h-0.5 bg-navy rounded transition-all duration-250 origin-center ${open ? 'translate-y-[7px] rotate-45' : ''}`}/>
             <span className={`block w-4 h-0.5 bg-navy rounded transition-all duration-250 ${open ? 'opacity-0 scale-x-0' : ''}`}/>
@@ -244,7 +267,10 @@ export default function Navbar() {
                   </div>
                   <div>
                     <div className="text-[0.85rem] font-bold text-navy">{user.name}</div>
-                    <div className="text-[0.65rem] text-muted">{isPremium ? '⭐ Premium' : '🆓 Free'}</div>
+                    {purchasesLoading
+                      ? <div className="w-10 h-2.5 rounded bg-base2 animate-pulse mt-0.5"/>
+                      : <div className="text-[0.65rem] text-muted">{isAdmin ? '🔑 Admin' : isPremium ? '✓ Active' : '🆓 Free'}</div>
+                    }
                   </div>
                 </div>
                 <button className="px-3.5 py-2.5 rounded-xl text-[0.92rem] font-semibold text-navy hover:bg-base2 text-left transition-colors"
