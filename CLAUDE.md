@@ -1,256 +1,231 @@
-# Engineering Learning Platform — Master Reference
+# EngiNotes — Claude Context
 
-> React + Vite frontend · Node.js + Express backend · PostgreSQL + Redis
-> Phases: Notes → Auth → Video Courses → Interview Prep → Admin
+> React 19 + Vite frontend · Node.js + Express backend · PostgreSQL + Redis
+> Branch: `dev` · See `SETUP.md` for local dev setup · See `README.md` for full feature list
 
 ---
 
-## Project Structure
+## Current project state
+
+All core phases are live:
+
+| Feature | Status |
+|---------|--------|
+| Deep-dive notes (12 topics) | ✅ Live |
+| Auth — register/login/Google OAuth | ✅ Live |
+| Email verification via OTP | ✅ Live |
+| Forgot password / reset via OTP | ✅ Live |
+| Brute-force login protection | ✅ Live |
+| Per-item payments (Razorpay + dummy mode) | ✅ Live |
+| Video courses (Kafka live, Spark/GCP coming) | ✅ Live |
+| Course lesson progress tracking | ✅ Live |
+| Interview prep with filters | ✅ Live |
+| Global search (Ctrl+K) | ✅ Live |
+| Admin dashboard + pricing | ✅ Live |
+| Personalised dashboard | ✅ Live |
+| Blog | ✅ Live |
+
+---
+
+## Repo structure
 
 ```
-Notes/                          ← repo root (dev branch)
-├── CLAUDE.md                   ← this file
-├── prompts/
-│   ├── BASE_PROMPT.md          ← paste before every topic block
-│   └── topics/
-│       ├── flink.md
-│       ├── druid.md
-│       ├── kafka.md
-│       ├── spark.md
-│       ├── gcp.md
-│       ├── machine_learning.md
-│       ├── langchain.md
-│       ├── react.md
-│       └── javascript.md
-└── app/                        ← React + Vite project
-    ├── src/
-    │   ├── pages/
-    │   │   ├── Home.jsx
-    │   │   ├── notes/
-    │   │   │   └── data-engineer/
-    │   │   │       ├── Kafka.jsx
-    │   │   │       ├── Spark.jsx
-    │   │   │       ├── GCP.jsx
-    │   │   │       ├── Druid.jsx
-    │   │   │       ├── Flink.jsx
-    │   │   │       ├── SQL.jsx
-    │   │   │       └── DataModeling.jsx
-    │   │   ├── courses/          ← Phase 3
-    │   │   ├── interview/        ← Phase 4
-    │   │   ├── auth/             ← Phase 2
-    │   │   ├── dashboard/        ← Phase 2
-    │   │   └── admin/            ← Phase 5
-    │   ├── components/
-    │   │   ├── layout/
-    │   │   │   ├── Sidebar.jsx
-    │   │   │   └── PageLayout.jsx
-    │   │   ├── content/
-    │   │   │   ├── Cover.jsx
-    │   │   │   ├── PartHeader.jsx
-    │   │   │   ├── Section.jsx
-    │   │   │   ├── SubSection.jsx
-    │   │   │   ├── CodeBlock.jsx
-    │   │   │   ├── Callout.jsx
-    │   │   │   ├── DataTable.jsx
-    │   │   │   └── Divider.jsx
-    │   │   ├── diagrams/
-    │   │   │   ├── Diagram.jsx
-    │   │   │   ├── IsoBox.jsx
-    │   │   │   └── IsoArrow.jsx
-    │   │   └── auth/             ← Phase 2
-    │   │       ├── ProtectedRoute.jsx
-    │   │       ├── PremiumRoute.jsx
-    │   │       └── AdminRoute.jsx
-    │   ├── store/
-    │   │   ├── authStore.js      ← Zustand
-    │   │   └── cartStore.js      ← Phase 3
-    │   ├── api/
-    │   │   └── client.js         ← axios instance
-    │   ├── hooks/
-    │   │   └── useScrollProgress.js
-    │   └── styles/
-    │       ├── globals.css       ← base design system (never modify)
-    │       └── theme.css         ← 3D, glassmorphism, animations
-    └── package.json
+Notes/
+├── CLAUDE.md          ← this file
+├── README.md          ← feature overview + API reference
+├── SETUP.md           ← local dev setup
+├── app/               ← React + Vite frontend (port 5173)
+└── backend/           ← Express API (port 4000)
 ```
 
 ---
 
-## Platform Phases
-
-| Phase | Feature | Status |
-|---|---|---|
-| 1 | Notes (deep-dive guides) | Active |
-| 2 | Auth — register, login, Google OAuth, JWT | Pending |
-| 3 | Video Courses + Razorpay payments | Pending |
-| 4 | Interview Prep | Pending |
-| 5 | Admin dashboard + analytics | Pending |
-
----
-
-## Tech Stack
-
-| Layer | Choice | Why |
-|---|---|---|
-| Frontend | React 18 + Vite | Fast, simple, already started |
-| Routing | React Router v6 | Nested protected routes |
-| State | Zustand | Simple auth + cart state |
-| Animations | Framer Motion | Page transitions, 3D diagram reveals |
-| Backend | Node.js + Express | Phase 2+ |
-| Database | PostgreSQL | Users, payments, enrollments |
-| Cache | Redis | JWT blacklist, sessions |
-| Auth | JWT + Refresh Tokens + Google OAuth | Industry standard |
-| Payment | Razorpay | Best for INR / UPI |
-| Video | Bunny.net Stream | DRM, cheap CDN |
-| Storage | Cloudflare R2 | Thumbnails, PDFs |
-| Email | Resend | OTP, receipts |
-| Deploy FE | Vercel | Instant, free tier |
-| Deploy BE | Railway | Node.js hosting |
-
----
-
-## User Roles (RBAC)
-
-| Role | Access |
-|---|---|
-| `user` (default) | Free notes, free previews, basic interview |
-| `premium` | All notes + enrolled courses + full interview + PDF downloads |
-| `admin` | Everything + admin panel, manage users/courses/payments |
-
-- New accounts → `role: 'user'` by default
-- Premium → via Razorpay payment → backend sets `role: 'premium'`
-- Admin → created manually in DB only, never via registration
-- Role embedded in JWT (15 min expiry) — no DB call per request
-
----
-
-## Frontend Routes
+## Frontend key files
 
 ```
-/                             Home
-/notes/:category/:slug        Note page  e.g. /notes/data-engineer/kafka
-/courses                      Course catalog          [Phase 3]
-/courses/:slug/learn          Video player            [PremiumRoute]
-/interview/:topic             Interview Q&A           [Phase 4]
-/pricing                      Plans page              [Phase 3]
-/auth/login                   Login                   [Phase 2]
-/auth/register                Register
-/auth/callback                Google OAuth
-/dashboard                    User dashboard          [Phase 2, ProtectedRoute]
-/admin                        Admin panel             [Phase 5, AdminRoute]
+app/src/
+├── App.jsx                          ← all routes (lazy-loaded)
+├── api/client.js                    ← axios instance + every API call
+├── store/authStore.js               ← Zustand: user, isPremium, purchases, purchasesLoading, owns()
+├── hooks/useAuth.js                 ← thin wrapper over authStore
+├── components/
+│   ├── layout/Navbar.jsx            ← includes SearchBar, UserMenu
+│   ├── layout/SearchBar.jsx         ← global search dropdown (Ctrl+K)
+│   ├── auth/PremiumRoute.jsx        ← blocks until purchasesLoading = false
+│   └── content/                     ← note renderer components
+├── pages/
+│   ├── auth/
+│   │   ├── Login.jsx                ← handles 403 requiresVerification
+│   │   ├── Signup.jsx               ← step 1 form + step 2 OTP inline
+│   │   └── ForgotPassword.jsx       ← step 1 email + step 2 OTP + new password
+│   ├── notes/NotePage.jsx           ← fetches per-note price on 403, owns() check
+│   ├── courses/CoursePage.jsx       ← ALL data from API (no static hardcoding)
+│   ├── dashboard/Dashboard.jsx      ← shows owned notes/courses/packs with expiry
+│   ├── upgrade/
+│   │   ├── Checkout.jsx             ← owns() check in picker, 409 → redirect to content
+│   │   └── PaymentSuccess.jsx       ← shows specific purchased item, not generic grid
+│   └── settings/Settings.jsx
+└── data/
+    ├── categories.js                ← NOTES_DATA (slug → name/color/icon/parts)
+    └── courses.js                   ← COURSES_DATA + COURSE_CATEGORIES (slug → display data)
 ```
 
 ---
 
-## Backend API (Phase 2+)
+## Backend key files
 
 ```
-POST  /api/v1/auth/register
-POST  /api/v1/auth/login
-POST  /api/v1/auth/logout
-POST  /api/v1/auth/refresh-token
-GET   /api/v1/auth/google
-GET   /api/v1/auth/google/callback
-
-GET   /api/v1/users/me                    [requireAuth]
-PATCH /api/v1/users/me                    [requireAuth]
-
-GET   /api/v1/courses                     [public]
-GET   /api/v1/courses/:slug/lessons/:id   [requirePremium]
-
-POST  /api/v1/payments/create-order       [requireAuth]
-POST  /api/v1/payments/verify             [requireAuth]
-
-GET   /api/v1/admin/users                 [requireAdmin]
-PATCH /api/v1/admin/users/:id/role        [requireAdmin]
-GET   /api/v1/admin/analytics             [requireAdmin]
+backend/
+├── server.js                        ← Express app, routes, middleware
+└── src/
+    ├── config/
+    │   ├── db.js                    ← pg pool + query helper
+    │   ├── redis.js                 ← ioredis + cacheGet/cacheSet/blacklistToken
+    │   ├── passport.js              ← Google OAuth strategy (sets email_verified=true)
+    │   └── payment.js               ← ITEM_PRICES, VALID_DAYS, expiresAt()
+    ├── middleware/auth.js           ← requireAuth, requirePremium, requireAdmin, optionalAuth
+    ├── services/emailService.js     ← sendOtpEmail, sendPasswordResetEmail (Resend / dev log)
+    ├── controllers/
+    │   ├── authController.js        ← register→OTP, verifyEmail, resendOtp, login, logout,
+    │   │                               forgotPassword, resetPassword, refreshToken, googleCallback
+    │   ├── notesController.js       ← listNotes, getNote, getNotePart (free_parts gate)
+    │   ├── coursesController.js     ← listCourses, getCourse (all display fields),
+    │   │                               getLesson, markLessonComplete, getMyProgress
+    │   ├── paymentsController.js    ← getPlans, createOrder (uses per-item DB price),
+    │   │                               verifyPayment, myPurchases
+    │   ├── interviewController.js   ← listTopics, listQuestions (filters: difficulty/company/tag/search),
+    │   │                               getQuestion
+    │   ├── searchController.js      ← GET /search?q= (notes + topics + questions + courses)
+    │   └── adminController.js       ← users, pricing, analytics, logs, user access grants
+    └── db/
+        ├── schema.sql               ← full schema (idempotent, run via db:migrate)
+        ├── seed.js                  ← test users + course data (with all display fields)
+        ├── seedContent.js           ← note metadata (price=9900), interview topics (price=9900),
+        │                               interview questions, blog posts
+        └── resetPrices.js           ← sets notes/interviews to ₹99, courses to ₹999
 ```
-
-Middleware chain: `requireAuth` → `requirePremium` → `requireAdmin`
 
 ---
 
-## Database (PostgreSQL)
+## Auth store — important behaviour
+
+```js
+// isPremium is true when:
+// 1. user.role === 'admin'
+// 2. user has any active purchase (notes.length + interviews.length + courses.length > 0)
+// It starts false and flips when myPurchases() resolves (non-blocking after getMe()).
+
+// purchasesLoading is true from mount until myPurchases() completes.
+// PremiumRoute blocks (returns null) while purchasesLoading is true —
+// prevents logged-in buyers from being bounced to /upgrade.
+
+// owns(type, slug) — checks purchases store, returns true for admins always.
+// type: 'note' | 'interview' | 'course'
+```
+
+---
+
+## Pricing system
+
+- All prices stored in **paise** in the DB (100 paise = ₹1)
+- Defaults: notes ₹99 (9900), interview packs ₹99 (9900), courses ₹999 (99900)
+- Set via env: `PRICE_NOTE`, `PRICE_COURSE`, `PRICE_INTERVIEW`
+- Admin can override per-item via `/admin/pricing` → stored in `notes_metadata.price`, `courses.price`, `interview_topics.price`
+- `createOrder` uses the DB per-item price if set, otherwise falls back to env default
+- Run `npm run db:reset-prices` to reset all prices to defaults
+
+---
+
+## Database schema (key tables)
 
 ```sql
-users                 id, name, email, password_hash, google_id, avatar_url, role, is_active
-premium_subscriptions id, user_id, plan, started_at, expires_at, payment_id, is_active
-courses               id, slug, title, description, thumbnail_url, price, is_published
-sections              id, course_id, title, order_index
-lessons               id, section_id, title, video_url, duration_seconds, is_preview
-enrollments           id, user_id, course_id, enrolled_at, payment_id
-payments              id, user_id, course_id, razorpay_order_id, razorpay_payment_id, amount, status
-notes_metadata        id, slug, category, title, is_premium
-interview_questions   id, topic_id, question, answer, difficulty, is_premium
-user_note_bookmarks   id, user_id, note_slug
-audit_logs            id, admin_id, action, target_user_id, old_value, new_value
-refresh_tokens        id, user_id, token_hash, expires_at
+users                    id, name, email, password_hash, google_id, role,
+                         email_verified, otp_code, otp_expires_at,
+                         failed_login_attempts, locked_until, is_active
+
+notes_metadata           slug, category, title, tagline, icon, color, level,
+                         parts_count, sections_count, free_parts, price, is_premium
+
+note_purchases           user_id, note_slug, payment_id, amount, expires_at
+interview_purchases      user_id, topic_slug, payment_id, amount, expires_at
+enrollments              user_id, course_id, payment_id, expires_at
+user_lesson_progress     user_id, lesson_id, course_id, completed_at
+
+courses                  slug, title, tagline, description, color, icon_slug,
+                         instructor, level, duration_text, lesson_count, module_count,
+                         free_modules, rating, highlights (jsonb), module_titles (jsonb),
+                         price, is_published, soon
+
+sections                 course_id, title, order_index  [UNIQUE(course_id, order_index)]
+lessons                  section_id, title, duration_seconds, is_preview, order_index
+
+interview_topics         slug, title, description, icon, color, price, is_published
+interview_questions      topic_id, slug, title, difficulty, companies (jsonb), tags (jsonb),
+                         answer, code, hints, time_complexity, space_complexity, is_premium
+
+refresh_tokens           user_id, token_hash, expires_at
+payments                 user_id, course_id, razorpay_order_id, amount, status
+user_note_bookmarks      user_id, note_slug
+blog_posts               slug, title, content, author_id, is_published
+audit_logs               admin_id, action, target_user_id, old_value, new_value
 ```
 
 ---
 
-## Pricing Plans (Phase 3)
+## Dev commands
 
-| Plan | Price | Notes |
-|---|---|---|
-| Free | ₹0 | Free notes only |
-| Monthly | ₹299/mo | All notes + courses |
-| Yearly | ₹2,499/yr | All notes + courses (save 30%) |
-| Lifetime | ₹4,999 | All notes + courses forever |
+```bash
+# Frontend
+cd app && npm run dev          # http://localhost:5173
+
+# Backend
+cd backend && npm run dev      # http://localhost:4000
+
+# Database
+npm run db:migrate             # apply schema changes
+npm run db:seed                # users + courses (all display fields)
+npm run db:content             # notes + interview questions + blog posts
+npm run db:reset-prices        # reset all prices to ₹99/₹999
+npm run docker:up              # start Postgres + Redis
+npm run docker:reset           # wipe DB and restart containers
+```
 
 ---
 
-## Component API — Quick Reference
+## Topic colors
+
+| Topic | Primary | Icon |
+|-------|---------|------|
+| Apache Kafka | `#4A90D9` | K |
+| Apache Spark | `#E25A1C` | S |
+| Apache Flink | `#E6522C` | F |
+| Apache Druid | `#29ABE2` | D |
+| GCP | `#4285F4` | G |
+| Data Modeling | `#7C3AED` | D |
+| SQL | `#336791` | S |
+| Machine Learning | `#8B5CF6` | M |
+| LangChain | `#1C7C54` | L |
+| React | `#0EA5E9` | R |
+| JavaScript | `#D97706` | J |
+
+---
+
+## Note component API (quick ref)
 
 ```jsx
-// Cover page
-<Cover
-  title="Apache Kafka"
-  subtitle="Distributed Event Streaming"
-  tagline="From first principles to production mastery"
-  stats={[{num:'22',label:'Sections'},{num:'6',label:'Parts'}]}
-  iconLetter="K"
-  gradStart="#4A90D9"
-  gradEnd="#5DB85B"
-  edition="Apache Kafka 3.7 · Java & Python · 2025"
-/>
+<Cover title="Apache Kafka" subtitle="Distributed Event Streaming"
+  stats={[{num:'6',label:'Parts'},{num:'14',label:'Sections'}]}
+  iconLetter="K" gradStart="#4A90D9" gradEnd="#5DB85B" edition="Kafka 3.7 · 2025"/>
 
-// Part header
-<PartHeader part={1} title="Foundations" subtitle="Core concepts every engineer must know" />
+<PartHeader part={1} title="Foundations" subtitle="Core concepts"/>
 
-// Section (maps to one sidebar link, auto-gets id s1/s2/s3...)
 <Section title="1 — Why Kafka Exists">
-
-  // Subsection
   <SubSection title="1.1 The Messaging Problem">
-
-    // Sub-subsection
-    <SubSubSection title="1.1.1 Point-to-Point vs Pub-Sub">
-
-      <Callout type="info"    label="Engineering Insight">text</Callout>
-      <Callout type="pitfall" label="Common Pitfall">text</Callout>
-      <Callout type="note"    label="Production Note">text</Callout>
-
-      <CodeBlock label="Producer Example" lang="Java">{'// code here'}</CodeBlock>
-
-      <DataTable
-        headers={['Config','Default','Recommended']}
-        rows={[['batch.size','16KB','64KB']]}
-      />
-
-      // 3D isometric diagram
-      <Diagram title="Kafka Architecture" viewBox="0 0 800 420">
-        <IsoBox x={0} y={1} z={0} w={1} h={1} d={1}
-          color="#4A90D9" label="Producer"
-          tileW={64} tileH={32} tileD={22} glowId="iso-glow" />
-        <IsoArrow
-          from={[1,1,0.5]} to={[3,1,0.5]}
-          color="rgba(255,255,255,0.6)"
-          tileW={64} tileH={32} tileD={22}
-          label="events" />
-      </Diagram>
-
-    </SubSubSection>
+    <Callout type="info"    label="Engineering Insight">text</Callout>
+    <Callout type="pitfall" label="Common Pitfall">text</Callout>
+    <Callout type="note"    label="Production Note">text</Callout>
+    <CodeBlock label="Example" lang="Java">{'// code'}</CodeBlock>
+    <DataTable headers={['Col1','Col2']} rows={[['a','b']]}/>
   </SubSection>
 </Section>
 
@@ -259,90 +234,26 @@ refresh_tokens        id, user_id, token_hash, expires_at
 
 ---
 
-## Sidebar Config Pattern (inside every note file)
+## Adding a new note
 
-```js
-const sidebar = {
-  brand: 'Apache Kafka',
-  title: 'Deep-Dive Guide',
-  iconLetter: 'K',
-  gradStart: '#4A90D9',
-  gradEnd: '#5DB85B',
-  parts: [
-    {
-      label: 'Part I — Foundations',
-      sections: [
-        { id: 's1', num: 1, title: 'Why Kafka Exists' },
-        { id: 's2', num: 2, title: 'Architecture Overview' },
-      ]
-    },
-    {
-      label: 'Part II — Core Concepts',
-      sections: [
-        { id: 's3', num: 3, title: 'Topics & Partitions' },
-      ]
-    }
-  ]
-}
-
-export default function Kafka() {
-  return (
-    <PageLayout sidebar={sidebar} color="#4A90D9">
-      ...
-    </PageLayout>
-  )
-}
-```
+1. Create `app/src/pages/notes/<category>/<Slug>.jsx` using the component API above
+2. Add the slug to `NOTES_DATA` in `app/src/data/categories.js`
+3. Add to `NOTE_REGISTRY` in `app/src/pages/notes/NotePage.jsx` (static fallback)
+4. Add to `NOTES` array in `backend/src/db/seedContent.js` with `price: 9900`
+5. Run `npm run db:content` to seed the metadata
 
 ---
 
-## Topic Color Reference
+## Adding a new note part to the DB
 
-| Topic | Primary Color | Grad End | Icon |
-|---|---|---|---|
-| Apache Kafka | `#4A90D9` | `#5DB85B` | K |
-| Apache Spark | `#E25A1C` | `#F5A623` | S |
-| Apache Flink | `#E6522C` | `#F5A623` | F |
-| Apache Druid | `#29ABE2` | `#0F6B99` | D |
-| GCP | `#4285F4` | `#34A853` | G |
-| Data Modeling | `#7C3AED` | `#2ECC71` | D |
-| SQL | `#336791` | `#5DB85B` | S |
-| Machine Learning | `#7C3AED` | `#EC4899` | M |
-| LangChain | `#1C7C54` | `#4A90D9` | L |
-| React | `#0EA5E9` | `#6366F1` | R |
-| JavaScript | `#D97706` | `#EF4444` | J |
+Add an entry to the relevant parts array in `backend/src/db/content/` and run `npm run db:content`.
+Parts `0` and `1` (index 0 and 1) are free — everything from index 2 onwards requires purchase.
 
 ---
 
-## Environment Variables
+## Known limitations / next steps
 
-```bash
-# app/.env
-VITE_API_URL=http://localhost:4000/api/v1
-VITE_RAZORPAY_KEY_ID=rzp_test_xxxx
-VITE_GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
-
-# backend/.env  (Phase 2)
-PORT=4000
-DATABASE_URL=postgresql://user:pass@localhost:5432/learndb
-REDIS_URL=redis://localhost:6379
-JWT_SECRET=your_32char_secret
-JWT_REFRESH_SECRET=your_32char_refresh_secret
-GOOGLE_CLIENT_ID=xxxx
-GOOGLE_CLIENT_SECRET=xxxx
-RAZORPAY_KEY_ID=rzp_test_xxxx
-RAZORPAY_KEY_SECRET=xxxx
-RESEND_API_KEY=re_xxxx
-CLIENT_URL=http://localhost:5173
-```
-
----
-
-## Dev Commands
-
-```bash
-cd app
-npm run dev       # localhost:5173
-npm run build     # production → dist/
-npm run preview   # preview build
-```
+- Course video player (lesson watch page) not yet built — `/courses/:slug/learn` is a future route
+- PDF download for notes not yet implemented
+- Email notifications for purchase expiry not yet scheduled
+- `soon: true` courses (Spark, GCP) have no sections/lessons seeded yet
